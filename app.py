@@ -6,7 +6,7 @@ import os, pytz
 from datetime import datetime, timedelta, time, date
 
 def pg_uri(uri: str) -> str:
-    return uri.replace("postgresql://", "postgresql+psycopg2://")
+    return uri.replace("postgresql://", "postgresql+psycopg://")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
