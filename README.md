@@ -1,17 +1,12 @@
-# Les Douanes du Sud
+# Les Douanes du Sud - v3
 
-Outil de génération de rapports de douanes pour les Royaumes Renaissants.
+MVP opérationnel (connexion, rapports maréchaux, génération BBCode).
 
-## Commandes utiles
+## Déploiement
 
-### Lancer en local
+### Initialisation (Render → Shell)
 ```bash
-flask run
+python manage.py initdb
+python manage.py add-villages "Auch;Eauze;Lectoure;Muret;Saint Bertrand de Comminges;Saint Liziers"
+python manage.py create-superadmin "Agatha.isabella" "AC-Prevot!2025#"
 ```
-
-### Initialiser la base
-```bash
-python manage.py init-db
-```
-
-Déployé automatiquement via Render.
