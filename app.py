@@ -60,6 +60,42 @@ class Report(db.Model):
     moves = db.Column(db.Text, default="")
     bbcode = db.Column(db.Text, default="")
 
+# ---- BOOTSTRAP TEMPORAIRE /setup (à supprimer après usage) ------------------
+@app.route("/setup")
+def setup():
+    # Sécurité : jeton simple (modifiable dans Render → Environment)
+    expected = os.getenv("SETUP_TOKEN", "AC-Prevot_2025!")
+    token = request.args.get("token", "")
+    if token != expected:
+        return "Accès refusé", 403
+
+    # Création des tables si pas encore présentes
+    db.create_all()
+
+    # 1) Villages par défaut
+    villages = [
+        "Auch", "Eauze", "Lectoure", "Muret",
+        "Saint Bertrand de Comminges", "Saint Liziers"
+    ]
+    created_v = 0
+    for name in villages:
+        if not Village.query.filter_by(name=name).first():
+            db.session.add(Village(name=name))
+            created_v += 1
+
+    # 2) Super-admin par défaut
+    admin_login = os.getenv("SETUP_ADMIN_LOGIN", "Agatha.isabella")
+    admin_pass = os.getenv("SETUP_ADMIN_PASSWORD", "AC-Prevot!2025#")
+    u = User.query.filter_by(username=admin_login).first()
+    if not u:
+        u = User(username=admin_login, role="superadmin")
+        u.set_password(admin_pass)
+        db.session.add(u)
+
+    db.session.commit()
+    return f"OK — villages ajoutés: {created_v}. Super-admin: {admin_login}", 200
+# -----------------------------------------------------------------------------
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
