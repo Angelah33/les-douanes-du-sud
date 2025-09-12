@@ -108,8 +108,11 @@ def login():
         login_user(user,remember=remember); return redirect(url_for("rapport"))
     return render_template("login.html")
 
-@app.route("/logout"); @login_required
-def logout(): logout_user(); return redirect(url_for("home"))
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("home"))
 
 @app.route("/rapport",methods=["GET","POST"]); @login_required
 def rapport():
