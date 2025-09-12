@@ -1,3 +1,17 @@
 # Les Douanes du Sud
 
-Projet de rapports de douanes pour Armagnac & Comminges.
+Outil de génération de rapports de douanes pour les Royaumes Renaissants.
+
+## Commandes utiles
+
+### Lancer en local
+```bash
+flask run
+```
+
+### Initialiser la base
+```bash
+python manage.py init-db
+```
+
+Déployé automatiquement via Render.
