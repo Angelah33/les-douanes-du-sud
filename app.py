@@ -114,7 +114,8 @@ def logout():
     logout_user()
     return redirect(url_for("home"))
 
-@app.route("/rapport",methods=["GET","POST"]); @login_required
+@app.route("/rapport", methods=["GET", "POST"])
+@login_required
 def rapport():
     villages=[v.name for v in Village.query.order_by(Village.name.asc()).all()]; blocked=is_blocked_now()
     if request.method=="POST":
