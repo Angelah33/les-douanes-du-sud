@@ -49,8 +49,13 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="marechal")
-    def set_password(self, password): self.password_hash = generate_password_hash(password)
-    def check_password(self, password): return check_password_hash(self.password_hash, password)
+    bureau = db.Column(db.String(120), nullable=True, default="Armagnac & Comminges")
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class Village(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -161,6 +166,22 @@ def inject_globals():
     return dict(SITE_NAME=SITE_NAME, UI_BG_COLOR=UI_BG_COLOR, UI_TEXT_COLOR=UI_TEXT_COLOR,
                 REPORT_TITLE_COLOR=REPORT_TITLE_COLOR, BUREAU_NAME=BUREAU_NAME, BUREAU_LOGO_URL=BUREAU_LOGO_URL)
 
+# Vérifie que la colonne "bureau" existe dans la table user,
+# et si elle n’existe pas, l’ajoute avec une valeur par défaut.
+def ensure_user_bureau_column():
+    from sqlalchemy import inspect, text
+    insp = inspect(db.engine)
+    if "user" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("user")]
+        if "bureau" not in cols:
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE user ADD COLUMN bureau VARCHAR(120) DEFAULT 'Armagnac & Comminges'"))
+                conn.commit()
+
+# Appel automatique au démarrage pour être sûr que la colonne existe
+with app.app_context():
+    ensure_user_bureau_column()
+
 # ---------------------------------------------------------------------
 # Routes UI
 # ---------------------------------------------------------------------
@@ -234,24 +255,41 @@ def admin_users():
         abort(403)
 
     if request.method == "POST":
+        # Création d’utilisateur
         uname = (request.form.get("username") or "").strip()
         pwd   = (request.form.get("password") or "").strip()
         role  = (request.form.get("role") or "marechal").strip()
+        bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
 
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
         elif User.query.filter_by(username=uname).first():
             flash("Cet utilisateur existe déjà.")
         else:
-            u = User(username=uname, role=role)
+            u = User(username=uname, role=role, bureau=bureau)
             u.set_password(pwd)
             db.session.add(u)
             db.session.commit()
-            flash(f"Utilisateur {uname} ({role}) créé.")
+            flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
             return redirect(url_for("admin_users"))
 
-    users = User.query.order_by(User.username.asc()).all()
+        # Suppression multiple
+        to_delete = request.form.getlist("delete_user")
+        if to_delete:
+            for uid in to_delete:
+                user = User.query.get(int(uid))
+                if user and user.role != "superadmin":  # sécurité
+                    db.session.delete(user)
+            db.session.commit()
+            flash("Comptes supprimés.")
+            return redirect(url_for("admin_users"))
 
+    # Récupérer utilisateurs existants (hors superadmin)
+    bureau_filter = request.args.get("bureau") or "Armagnac & Comminges"
+    users = User.query.filter(User.role != "superadmin", User.bureau == bureau_filter)\
+                      .order_by(User.username.asc()).all()
+
+    # Rendu
     return render_template_string("""
 {% extends "base.html" %}{% block content %}
 <h1>Gestion des utilisateurs</h1>
@@ -263,7 +301,7 @@ def admin_users():
 {% endwith %}
 
 <h3>Créer un utilisateur</h3>
-<form method="post" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:end;max-width:700px">
+<form method="post" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;max-width:900px">
   <div>
     <label>Identifiant</label>
     <input name="username" placeholder="ex: JeanDupont" required>
@@ -271,6 +309,12 @@ def admin_users():
   <div>
     <label>Mot de passe</label>
     <input name="password" type="password" required>
+  </div>
+  <div>
+    <label>Bureau</label>
+    <select name="bureau">
+      <option value="Armagnac & Comminges" selected>Armagnac & Comminges</option>
+    </select>
   </div>
   <div>
     <label>Rôle</label>
@@ -283,19 +327,34 @@ def admin_users():
   <button type="submit">Créer</button>
 </form>
 
-<h3 style="margin-top:1rem">Utilisateurs existants</h3>
-<table style="width:100%;max-width:700px;border-collapse:collapse">
-  <thead><tr><th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th><th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th></tr></thead>
+<h3 style="margin-top:1rem">Utilisateurs existants ({{ bureau_filter }})</h3>
+<form method="post">
+<table style="width:100%;max-width:900px;border-collapse:collapse">
+  <thead>
+    <tr>
+      <th></th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
+    </tr>
+  </thead>
   <tbody>
     {% for u in users %}
-      <tr><td style="padding:.4rem 0">{{ u.username }}</td><td>{{ u.role }}</td></tr>
+      <tr>
+        <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
+        <td style="padding:.4rem 0">{{ u.username }}</td>
+        <td>{{ u.bureau }}</td>
+        <td>{{ u.role }}</td>
+      </tr>
     {% else %}
-      <tr><td colspan="2"><em>Aucun utilisateur</em></td></tr>
+      <tr><td colspan="4"><em>Aucun utilisateur</em></td></tr>
     {% endfor %}
   </tbody>
 </table>
+<button type="submit">Supprimer sélection</button>
+</form>
 {% endblock %}
-""")
+""", bureau_filter=bureau_filter)
 
 # ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
