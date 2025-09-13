@@ -175,7 +175,12 @@ def ensure_user_bureau_column():
         cols = [c["name"] for c in insp.get_columns("user")]
         if "bureau" not in cols:
             with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE user ADD COLUMN bureau VARCHAR(120) DEFAULT 'Armagnac & Comminges'"))
+                # 1) ajouter la colonne (sans DEFAULT d’abord)
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN bureau VARCHAR(120)'))
+                # 2) remplir les lignes existantes
+                conn.execute(text('UPDATE "user" SET bureau = \'Armagnac & Comminges\' WHERE bureau IS NULL'))
+                # 3) définir un DEFAULT pour les futures insertions
+                conn.execute(text('ALTER TABLE "user" ALTER COLUMN bureau SET DEFAULT \'Armagnac & Comminges\''))
                 conn.commit()
 
 # Appel automatique au démarrage pour être sûr que la colonne existe
