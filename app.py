@@ -253,17 +253,31 @@ def prevot_dashboard():
 """)
 
 # ---------- Gestion simple des utilisateurs (réservé superadmin) ----------
+from sqlalchemy import case
+
 @app.route("/admin/users", methods=["GET", "POST"])
 @login_required
 def admin_users():
     if not is_superadmin():
         abort(403)
 
+    # --- Création & suppression ---
     if request.method == "POST":
-        # Création d’utilisateur
-        uname = (request.form.get("username") or "").strip()
-        pwd   = (request.form.get("password") or "").strip()
-        role  = (request.form.get("role") or "marechal").strip()
+        # Suppression multiple
+        to_delete = request.form.getlist("delete_user")
+        if to_delete:
+            for uid in to_delete:
+                user = User.query.get(int(uid))
+                if user and user.role != "superadmin":
+                    db.session.delete(user)
+            db.session.commit()
+            flash("Comptes supprimés.")
+            return redirect(url_for("admin_users"))
+
+        # Création
+        uname  = (request.form.get("username") or "").strip()
+        pwd    = (request.form.get("password") or "").strip()
+        role   = (request.form.get("role") or "marechal").strip()
         bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
 
         if not uname or not pwd:
@@ -276,23 +290,21 @@ def admin_users():
             db.session.add(u)
             db.session.commit()
             flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
-            return redirect(url_for("admin_users"))
+        return redirect(url_for("admin_users"))
 
-        # Suppression multiple
-        to_delete = request.form.getlist("delete_user")
-        if to_delete:
-            for uid in to_delete:
-                user = User.query.get(int(uid))
-                if user and user.role != "superadmin":  # sécurité
-                    db.session.delete(user)
-            db.session.commit()
-            flash("Comptes supprimés.")
-            return redirect(url_for("admin_users"))
-
-    # Récupérer utilisateurs existants (hors superadmin)
-    bureau_filter = request.args.get("bureau") or "Armagnac & Comminges"
-    users = User.query.filter(User.role != "superadmin", User.bureau == bureau_filter)\
-                      .order_by(User.username.asc()).all()
+    # --- Liste SANS AUCUN FILTRE ---
+    # Ordre : prévôt en premier (0), maréchal (1), autres (2) ; puis alpha
+    role_order = case(
+        (User.role == "prevot", 0),
+        (User.role == "marechal", 1),
+        else_=2
+    )
+    users = (
+        User.query
+        .filter(User.role != "superadmin")
+        .order_by(role_order, User.username.asc())
+        .all()
+    )
 
     # Rendu
     return render_template_string("""
@@ -306,7 +318,7 @@ def admin_users():
 {% endwith %}
 
 <h3>Créer un utilisateur</h3>
-<form method="post" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;max-width:900px">
+<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr auto;gap:.5rem;align-items:end;max-width:980px">
   <div>
     <label>Identifiant</label>
     <input name="username" placeholder="ex: JeanDupont" required>
@@ -332,9 +344,9 @@ def admin_users():
   <button type="submit">Créer</button>
 </form>
 
-<h3 style="margin-top:1rem">Utilisateurs existants ({{ bureau_filter }})</h3>
+<h3 style="margin-top:1rem">Utilisateurs existants</h3>
 <form method="post">
-<table style="width:100%;max-width:900px;border-collapse:collapse">
+<table style="width:100%;max-width:980px;border-collapse:collapse">
   <thead>
     <tr>
       <th></th>
@@ -348,7 +360,7 @@ def admin_users():
       <tr>
         <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
         <td style="padding:.4rem 0">{{ u.username }}</td>
-        <td>{{ u.bureau }}</td>
+        <td>{{ u.bureau or '—' }}</td>
         <td>{{ u.role }}</td>
       </tr>
     {% else %}
@@ -359,7 +371,7 @@ def admin_users():
 <button type="submit">Supprimer sélection</button>
 </form>
 {% endblock %}
-""", bureau_filter=bureau_filter)
+""")
 
 # ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
