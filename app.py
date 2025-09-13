@@ -1,12 +1,21 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, render_template_string, request, redirect, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os, pytz
 from datetime import datetime, timedelta, time, date
 
+# ---------------------------------------------------------------------
+# Connexion DB : normalise l'URL et force psycopg (psycopg3)
+# ---------------------------------------------------------------------
 def pg_uri(uri: str) -> str:
-    return uri.replace("postgresql://", "postgresql+psycopg://")
+    if not uri:
+        return "sqlite:///local.db"
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+    if uri.startswith("postgresql://"):
+        uri = uri.replace("postgresql://", "postgresql+psycopg://", 1)
+    return uri
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
@@ -31,6 +40,9 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
+# ---------------------------------------------------------------------
+# Modèles
+# ---------------------------------------------------------------------
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), unique=True, nullable=False)
@@ -60,42 +72,47 @@ class Report(db.Model):
     moves = db.Column(db.Text, default="")
     bbcode = db.Column(db.Text, default="")
 
-# ---- BOOTSTRAP TEMPORAIRE /setup (à supprimer après usage) ------------------
+# ---------------------------------------------------------------------
+# /setup (TEMPORAIRE) — initialisation villages + superadmin
+# ---------------------------------------------------------------------
 @app.route("/setup")
 def setup():
-    # Sécurité : jeton simple (modifiable dans Render → Environment)
     expected = os.getenv("SETUP_TOKEN", "AC-Prevot_2025!")
     token = request.args.get("token", "")
     if token != expected:
         return "Accès refusé", 403
 
-    # Création des tables si pas encore présentes
-    db.create_all()
+    try:
+        db.create_all()
 
-    # 1) Villages par défaut
-    villages = [
-        "Auch", "Eauze", "Lectoure", "Muret",
-        "Saint Bertrand de Comminges", "Saint Liziers"
-    ]
-    created_v = 0
-    for name in villages:
-        if not Village.query.filter_by(name=name).first():
-            db.session.add(Village(name=name))
-            created_v += 1
+        villages = [
+            "Auch", "Eauze", "Lectoure", "Muret",
+            "Saint Bertrand de Comminges", "Saint Liziers"
+        ]
+        created_v = 0
+        for name in villages:
+            if not Village.query.filter_by(name=name).first():
+                db.session.add(Village(name=name))
+                created_v += 1
 
-    # 2) Super-admin par défaut
-    admin_login = os.getenv("SETUP_ADMIN_LOGIN", "Agatha.isabella")
-    admin_pass = os.getenv("SETUP_ADMIN_PASSWORD", "AC-Prevot!2025#")
-    u = User.query.filter_by(username=admin_login).first()
-    if not u:
-        u = User(username=admin_login, role="superadmin")
-        u.set_password(admin_pass)
-        db.session.add(u)
+        admin_login = os.getenv("SETUP_ADMIN_LOGIN", "Agatha.isabella")
+        admin_pass = os.getenv("SETUP_ADMIN_PASSWORD", "AC-Prevot!2025#")
+        u = User.query.filter_by(username=admin_login).first()
+        if not u:
+            u = User(username=admin_login, role="superadmin")
+            u.set_password(admin_pass)
+            db.session.add(u)
 
-    db.session.commit()
-    return f"OK — villages ajoutés: {created_v}. Super-admin: {admin_login}", 200
-# -----------------------------------------------------------------------------
+        db.session.commit()
+        return f"OK — villages ajoutés: {created_v}. Super-admin: {admin_login}", 200
 
+    except Exception as e:
+        app.logger.exception("Échec de setup()")
+        return f"Erreur d'initialisation: {e}", 500
+
+# ---------------------------------------------------------------------
+# Login / helpers
+# ---------------------------------------------------------------------
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -107,6 +124,15 @@ def is_blocked_now():
     return start <= now < end if start<end else (now>=start or now<end)
 def count_lines(txt): return len([ln for ln in (txt or "").splitlines() if ln.strip()])
 
+def is_superadmin():
+    return current_user.is_authenticated and getattr(current_user, "role", "") == "superadmin"
+
+def is_prevot():
+    return current_user.is_authenticated and getattr(current_user, "role", "") == "prevot"
+
+# ---------------------------------------------------------------------
+# Génération BBCode du rapport maréchal
+# ---------------------------------------------------------------------
 def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, ac_presence, armies_groups, villagers, moves):
     date_str = d.strftime("%d %B %Y")
     lines=[]
@@ -126,13 +152,20 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
     lines.append(legend+"\n[/quote]")
     return "\n".join(lines)
 
+# ---------------------------------------------------------------------
+# Contexte global pour les templates
+# ---------------------------------------------------------------------
 @app.context_processor
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, UI_BG_COLOR=UI_BG_COLOR, UI_TEXT_COLOR=UI_TEXT_COLOR,
                 REPORT_TITLE_COLOR=REPORT_TITLE_COLOR, BUREAU_NAME=BUREAU_NAME, BUREAU_LOGO_URL=BUREAU_LOGO_URL)
 
+# ---------------------------------------------------------------------
+# Routes UI
+# ---------------------------------------------------------------------
 @app.route("/")
-def home(): return render_template("home.html")
+def home():
+    return render_template("home.html")
 
 @app.route("/login",methods=["GET","POST"])
 def login():
@@ -141,7 +174,8 @@ def login():
         user=User.query.filter_by(username=u).first()
         if not user or not user.check_password(p):
             flash("Identifiants incorrects."); return render_template("login.html")
-        login_user(user,remember=remember); return redirect(url_for("rapport"))
+        login_user(user,remember=remember)
+        return redirect(url_for("dashboard"))  # redirection par rôle
     return render_template("login.html")
 
 @app.route("/logout")
@@ -150,16 +184,133 @@ def logout():
     logout_user()
     return redirect(url_for("home"))
 
+# ---------- Routeur de tableaux de bord ----------
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    r = getattr(current_user, "role", "")
+    if r == "superadmin":
+        return redirect(url_for("admin_dashboard"))
+    elif r == "prevot":
+        return redirect(url_for("prevot_dashboard"))
+    else:
+        return redirect(url_for("rapport"))
+
+@app.route("/admin/dashboard")
+@login_required
+def admin_dashboard():
+    if not is_superadmin():
+        abort(403)
+    return render_template_string("""
+{% extends "base.html" %}{% block content %}
+<h1>Tableau de bord — Admin</h1>
+<ul>
+  <li><a href="{{ url_for('admin_users') }}">Gérer les utilisateurs</a></li>
+  <li><a href="{{ url_for('rapport') }}">Saisir un rapport</a></li>
+</ul>
+{% endblock %}
+""")
+
+@app.route("/prevot/dashboard")
+@login_required
+def prevot_dashboard():
+    if not (is_prevot() or is_superadmin()):
+        abort(403)
+    return render_template_string("""
+{% extends "base.html" %}{% block content %}
+<h1>Tableau de bord — Prévôt</h1>
+<ul>
+  <li><a href="{{ url_for('rapport') }}">Consulter / Saisir des rapports</a></li>
+</ul>
+{% endblock %}
+""")
+
+# ---------- Gestion simple des utilisateurs (réservé superadmin) ----------
+@app.route("/admin/users", methods=["GET", "POST"])
+@login_required
+def admin_users():
+    if not is_superadmin():
+        abort(403)
+
+    if request.method == "POST":
+        uname = (request.form.get("username") or "").strip()
+        pwd   = (request.form.get("password") or "").strip()
+        role  = (request.form.get("role") or "marechal").strip()
+
+        if not uname or not pwd:
+            flash("Renseigne un identifiant et un mot de passe.")
+        elif User.query.filter_by(username=uname).first():
+            flash("Cet utilisateur existe déjà.")
+        else:
+            u = User(username=uname, role=role)
+            u.set_password(pwd)
+            db.session.add(u)
+            db.session.commit()
+            flash(f"Utilisateur {uname} ({role}) créé.")
+            return redirect(url_for("admin_users"))
+
+    users = User.query.order_by(User.username.asc()).all()
+
+    return render_template_string("""
+{% extends "base.html" %}{% block content %}
+<h1>Gestion des utilisateurs</h1>
+
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}
+    {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h3>Créer un utilisateur</h3>
+<form method="post" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:end;max-width:700px">
+  <div>
+    <label>Identifiant</label>
+    <input name="username" placeholder="ex: JeanDupont" required>
+  </div>
+  <div>
+    <label>Mot de passe</label>
+    <input name="password" type="password" required>
+  </div>
+  <div>
+    <label>Rôle</label>
+    <select name="role">
+      <option value="marechal" selected>maréchal</option>
+      <option value="prevot">prévôt</option>
+      <option value="superadmin">superadmin</option>
+    </select>
+  </div>
+  <button type="submit">Créer</button>
+</form>
+
+<h3 style="margin-top:1rem">Utilisateurs existants</h3>
+<table style="width:100%;max-width:700px;border-collapse:collapse">
+  <thead><tr><th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th><th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th></tr></thead>
+  <tbody>
+    {% for u in users %}
+      <tr><td style="padding:.4rem 0">{{ u.username }}</td><td>{{ u.role }}</td></tr>
+    {% else %}
+      <tr><td colspan="2"><em>Aucun utilisateur</em></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+""")
+
+# ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
     villages=[v.name for v in Village.query.order_by(Village.name.asc()).all()]; blocked=is_blocked_now()
     if request.method=="POST":
-        if blocked: flash("Dépôt bloqué."); return render_template("rapport.html",villages=villages,blocked=blocked)
-        village=request.form.get("village"); 
-        if not village: flash("Choisissez un village."); return render_template("rapport.html",villages=villages,blocked=blocked)
+        if blocked:
+            flash("Dépôt bloqué.")
+            return render_template("rapport.html",villages=villages,blocked=blocked)
+        village=request.form.get("village")
+        if not village:
+            flash("Choisissez un village.")
+            return render_template("rapport.html",villages=villages,blocked=blocked)
         tour=request.form.get("tour_de_garde")=="oui"
-        mv=request.form.get("mem_visions","").strip(); 
+        mv=request.form.get("mem_visions","").strip()
         if tour and not mv: mv="[b]RAS.[/b]"
         if not tour and not mv: mv="Tour de garde non effectué (autres données fournies)."
         surv=request.form.get("surveillance",""); flux=request.form.get("flux","")
@@ -167,7 +318,10 @@ def rapport():
         ag=request.form.get("armies_groups",""); villagers=request.form.get("villagers",""); moves=request.form.get("moves","")
         today=date.today(); bb=bbcode_report(village,today,mv,surv,flux,foreigners,acp,ag,villagers,moves)
         r=Report(report_date=today,user_id=current_user.id,village=village,tour_de_garde=tour,mem_visions=mv,surveillance=surv,flux=flux,foreigners=foreigners,ac_presence=acp,armies_groups=ag,villagers=villagers,moves=moves,bbcode=bb)
-        db.session.add(r); db.session.commit(); return render_template("report_result.html",bbcode=bb,village=village,date=today.strftime("%d %B %Y"))
+        db.session.add(r); db.session.commit()
+        return render_template("report_result.html",bbcode=bb,village=village,date=today.strftime("%d %B %Y"))
     return render_template("rapport.html",villages=villages,blocked=blocked)
 
-if __name__=="__main__": app.run(host="0.0.0.0",port=5000)
+# ---------------------------------------------------------------------
+if __name__=="__main__":
+    app.run(host="0.0.0.0",port=5000)
