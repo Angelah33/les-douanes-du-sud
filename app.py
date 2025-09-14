@@ -292,19 +292,17 @@ def admin_users():
             flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
         return redirect(url_for("admin_users"))
 
-    # --- Liste SANS AUCUN FILTRE ---
-    # Ordre : prévôt en premier (0), maréchal (1), autres (2) ; puis alpha
-    role_order = case(
-        (User.role == "prevot", 0),
-        (User.role == "marechal", 1),
-        else_=2
-    )
+    # --- Liste SANS tri sophistiqué (test) ---
     users = (
         User.query
         .filter(User.role != "superadmin")
-        .order_by(role_order, User.username.asc())
+        .order_by(User.username.asc())
         .all()
     )
+
+    # DEBUG temporaire : combien de comptes on voit ?
+    flash(f"Debug: {len(users)} utilisateurs visibles (hors superadmin).")
+    
 
     # Rendu
     return render_template_string("""
