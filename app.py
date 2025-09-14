@@ -369,7 +369,7 @@ def admin_users():
 <button type="submit">Supprimer sélection</button>
 </form>
 {% endblock %}
-""")
+""", users=users)
 
 # ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
