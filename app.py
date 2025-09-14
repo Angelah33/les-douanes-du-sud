@@ -205,6 +205,8 @@ with app.app_context():
 # ---------------------------------------------------------------------
 # Routes UI (propres)
 # ---------------------------------------------------------------------
+from sqlalchemy import case  # utilisé pour l'ordre d'affichage des rôles
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -332,7 +334,7 @@ def admin_guides():
 </form>
 
 <script>
-  // Aperçu “live” minimal : on prévient qu'il se mettra à jour après enregistrement
+  // Aperçu “live” minimal : message disant que l'aperçu sera à jour après Enregistrer
   const pm = document.querySelector("textarea[name='content_marechal']");
   const pp = document.querySelector("textarea[name='content_prevot']");
   const vm = document.getElementById("preview_marechal");
@@ -344,6 +346,123 @@ def admin_guides():
 """, gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
 
 
+# ---------- Gestion des utilisateurs (réservé superadmin) ----------
+@app.route("/admin/users", methods=["GET", "POST"], endpoint="admin_users")
+@login_required
+def admin_users():
+    if not is_superadmin():
+        abort(403)
+
+    # Création / suppression
+    if request.method == "POST":
+        # Suppression multiple (cases cochées)
+        to_delete = request.form.getlist("delete_user")
+        if to_delete:
+            for uid in to_delete:
+                user = User.query.get(int(uid))
+                if user and user.role != "superadmin":
+                    db.session.delete(user)
+            db.session.commit()
+            flash("Comptes supprimés.")
+            return redirect(url_for("admin_users"))
+
+        # Création d’un nouvel utilisateur
+        uname  = (request.form.get("username") or "").strip()
+        pwd    = (request.form.get("password") or "").strip()
+        role   = (request.form.get("role") or "marechal").strip()
+        bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
+
+        if not uname or not pwd:
+            flash("Renseigne un identifiant et un mot de passe.")
+        elif User.query.filter_by(username=uname).first():
+            flash("Cet utilisateur existe déjà.")
+        else:
+            u = User(username=uname, role=role, bureau=bureau)
+            u.set_password(pwd)
+            db.session.add(u)
+            db.session.commit()
+            flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
+        return redirect(url_for("admin_users"))
+
+    # Liste (superadmin caché) : prévôt en premier, puis maréchal, puis autres, tri alpha
+    role_order = case(
+        (User.role == "prevot", 0),
+        (User.role == "marechal", 1),
+        else_=2
+    )
+    users = (
+        User.query
+        .filter(User.role != "superadmin")
+        .order_by(role_order, User.username.asc())
+        .all()
+    )
+
+    return render_template_string("""
+{% extends "base.html" %}{% block content %}
+<h1>Gestion des utilisateurs</h1>
+
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+{% endwith %}
+
+<h3>Créer un utilisateur</h3>
+<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr auto;gap:.5rem;align-items:end;max-width:980px">
+  <div>
+    <label>Identifiant</label>
+    <input name="username" placeholder="ex: JeanDupont" required>
+  </div>
+  <div>
+    <label>Mot de passe</label>
+    <input name="password" type="password" required>
+  </div>
+  <div>
+    <label>Bureau</label>
+    <select name="bureau">
+      <option value="Armagnac & Comminges" selected>Armagnac & Comminges</option>
+    </select>
+  </div>
+  <div>
+    <label>Rôle</label>
+    <select name="role">
+      <option value="marechal" selected>maréchal</option>
+      <option value="prevot">prévôt</option>
+      <option value="superadmin">superadmin</option>
+    </select>
+  </div>
+  <button type="submit">Créer</button>
+</form>
+
+<h3 style="margin-top:1rem">Utilisateurs existants</h3>
+<form method="post">
+<table style="width:100%;max-width:980px;border-collapse:collapse">
+  <thead>
+    <tr>
+      <th></th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
+      <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+      <tr>
+        <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
+        <td style="padding:.4rem 0">{{ u.username }}</td>
+        <td>{{ u.bureau or '—' }}</td>
+        <td>{{ u.role }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4"><em>Aucun utilisateur</em></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<button type="submit">Supprimer sélection</button>
+</form>
+{% endblock %}
+""", users=users)
+
+
+# ---------- Tableau de bord Admin ----------
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -361,6 +480,7 @@ def admin_dashboard():
 """)
 
 
+# ---------- Tableau de bord Prévôt ----------
 @app.route("/prevot/dashboard")
 @login_required
 def prevot_dashboard():
