@@ -32,7 +32,7 @@
         | <a href="{{ url_for('rapport') }}">Rapport</a>
 
         {# Liens “Guide” selon le rôle #}
-        {% set role = getattr(current_user, 'role', '') %}
+       {% set role = current_user.role if current_user.is_authenticated else '' %}
         {% if role == 'marechal' %}
           | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
         {% elif role == 'prevot' %}
