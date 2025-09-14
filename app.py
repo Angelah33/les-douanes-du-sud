@@ -6,7 +6,8 @@ from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
 # --- Guides: markdown + sanitisation HTML ---
-import markdown as md
+-import markdown
++import markdown as md
 import bleach
 
 # ---------------------------------------------------------------------
@@ -98,7 +99,7 @@ ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
 ALLOWED_ATTRS = {
     **bleach.sanitizer.ALLOWED_ATTRIBUTES,
     "a": ["href", "title", "target", "rel"],
-    "img": ["src", "alt", "title"],
+    "img": ["src", "alt", "title", "width", "height"],
     "table": ["border", "cellpadding", "cellspacing"]
 }
 
