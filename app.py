@@ -203,22 +203,31 @@ with app.app_context():
     ensure_user_bureau_column()
 
 # ---------------------------------------------------------------------
-# Routes UI
+# Routes UI (propres)
 # ---------------------------------------------------------------------
 @app.route("/")
 def home():
     return render_template("home.html")
 
-@app.route("/login",methods=["GET","POST"])
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method=="POST":
-        u=request.form.get("username"); p=request.form.get("password"); remember=True if request.form.get("remember")=="on" else False
-        user=User.query.filter_by(username=u).first()
+    if request.method == "POST":
+        u = request.form.get("username")
+        p = request.form.get("password")
+        remember = True if request.form.get("remember") == "on" else False
+
+        user = User.query.filter_by(username=u).first()
         if not user or not user.check_password(p):
-            flash("Identifiants incorrects."); return render_template("login.html")
-        login_user(user,remember=remember)
-        return redirect(url_for("dashboard"))  # redirection par rôle
+            flash("Identifiants incorrects.")
+            return render_template("login.html")
+
+        login_user(user, remember=remember)
+        # Redirection selon le rôle
+        return redirect(url_for("dashboard"))
+
     return render_template("login.html")
+
 
 @app.route("/logout")
 @login_required
@@ -226,23 +235,23 @@ def logout():
     logout_user()
     return redirect(url_for("home"))
 
+
 # ---------- Lecture des guides : renvoie du HTML à injecter en modale ----------
 @app.route("/guide/<audience>")
 @login_required
 def guide_read(audience):
-    # Autorisations :
-    # - maréchal : peut lire "marechal"
-    # - prévôt   : peut lire "prevot" ET "marechal"
-    # - superadmin : peut lire tout (mais pas de lien dans la barre)
+    """
+    Autorisations :
+      - maréchal : peut lire 'marechal'
+      - prévôt   : peut lire 'prevot' ET 'marechal'
+      - superadmin : peut lire tout (pas de lien spécifique dans la barre)
+    """
     role = getattr(current_user, "role", "")
-    allowed = False
-    if role == "marechal" and audience == "marechal":
-        allowed = True
-    elif role == "prevot" and audience in ("prevot", "marechal"):
-        allowed = True
-    elif role == "superadmin":
-        allowed = True
-
+    allowed = (
+        (role == "marechal" and audience == "marechal") or
+        (role == "prevot"   and audience in ("prevot", "marechal")) or
+        (role == "superadmin")
+    )
     if not allowed:
         return "Non autorisé", 403
 
@@ -251,20 +260,22 @@ def guide_read(audience):
         return "<em>Guide introuvable.</em>", 404
 
     html = render_markdown_safe(g.content)
-    # On renvoie juste le fragment HTML (le JS du template l'injecte dans la modale)
+    # On renvoie juste le fragment HTML (le JS du template l’injecte dans la modale)
     return html
+
 
 # ---------- Routeur de tableaux de bord ----------
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    r = getattr(current_user, "role", "")
-    if r == "superadmin":
+    role = getattr(current_user, "role", "")
+    if role == "superadmin":
         return redirect(url_for("admin_dashboard"))
-    elif r == "prevot":
+    elif role == "prevot":
         return redirect(url_for("prevot_dashboard"))
     else:
         return redirect(url_for("rapport"))
+
 
 # ---------- Édition des guides (Super-admin uniquement) ----------
 @app.route("/admin/guides", methods=["GET", "POST"])
@@ -277,7 +288,6 @@ def admin_guides():
     gp = Guide.query.filter_by(audience="prevot").first()
 
     if request.method == "POST":
-        # Sécurité simple : champs attendus
         new_gm = request.form.get("content_marechal", "")
         new_gp = request.form.get("content_prevot", "")
         if gm:
@@ -290,7 +300,6 @@ def admin_guides():
         flash("Guides enregistrés.")
         return redirect(url_for("admin_guides"))
 
-    # Aperçu live côté client : on refait un rendu initial pour affichage
     gm_html = render_markdown_safe(gm.content if gm else "")
     gp_html = render_markdown_safe(gp.content if gp else "")
 
@@ -300,9 +309,7 @@ def admin_guides():
 <p><em>(Édition réservée au Super-admin)</em></p>
 
 {% with msgs = get_flashed_messages() %}
-  {% if msgs %}
-    {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
-  {% endif %}
+  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
 {% endwith %}
 
 <form method="post" style="display:grid;gap:1rem;grid-template-columns:1fr 1fr;align-items:start">
@@ -325,8 +332,7 @@ def admin_guides():
 </form>
 
 <script>
-  // Aperçu “live” basique : quand on tape, on met un message
-  // (le rendu Markdown “vrai” sera fait côté serveur après Enregistrer)
+  // Aperçu “live” minimal : on prévient qu'il se mettra à jour après enregistrement
   const pm = document.querySelector("textarea[name='content_marechal']");
   const pp = document.querySelector("textarea[name='content_prevot']");
   const vm = document.getElementById("preview_marechal");
@@ -334,9 +340,9 @@ def admin_guides():
   if (pm && vm) pm.addEventListener("input", ()=>{ vm.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
   if (pp && vp) pp.addEventListener("input", ()=>{ vp.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
 </script>
-
 {% endblock %}
 """, gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
+
 
 @app.route("/admin/dashboard")
 @login_required
@@ -354,10 +360,12 @@ def admin_dashboard():
 {% endblock %}
 """)
 
+
 @app.route("/prevot/dashboard")
 @login_required
 def prevot_dashboard():
-    if not (is_prevot() or is_superadmin()):
+    role = getattr(current_user, "role", "")
+    if role not in ("prevot", "superadmin"):
         abort(403)
     return render_template_string("""
 {% extends "base.html" %}{% block content %}
@@ -368,153 +376,68 @@ def prevot_dashboard():
 {% endblock %}
 """)
 
-# ---------- Gestion des utilisateurs (réservé superadmin) ----------
-from sqlalchemy import case
-
-@app.route("/admin/users", methods=["GET", "POST"])
-@login_required
-def admin_users():
-    # ---- Vérification des droits ----
-    if not is_superadmin():
-        abort(403)
-
-    # ---- Création & suppression ----
-    if request.method == "POST":
-        # Suppression multiple (cases cochées)
-        to_delete = request.form.getlist("delete_user")
-        if to_delete:
-            for uid in to_delete:
-                user = User.query.get(int(uid))
-                if user and user.role != "superadmin":
-                    db.session.delete(user)
-            db.session.commit()
-            flash("Comptes supprimés.")
-            return redirect(url_for("admin_users"))
-
-        # Création d’un nouvel utilisateur
-        uname  = (request.form.get("username") or "").strip()
-        pwd    = (request.form.get("password") or "").strip()
-        role   = (request.form.get("role") or "marechal").strip()
-        bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
-
-        if not uname or not pwd:
-            flash("Renseigne un identifiant et un mot de passe.")
-        elif User.query.filter_by(username=uname).first():
-            flash("Cet utilisateur existe déjà.")
-        else:
-            u = User(username=uname, role=role, bureau=bureau)
-            u.set_password(pwd)
-            db.session.add(u)
-            db.session.commit()
-            flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
-        return redirect(url_for("admin_users"))
-
-    # ---- Récupération de la liste des utilisateurs ----
-    # (superadmin exclus, car il doit rester caché)
-    role_order = case(
-        (User.role == "prevot", 0),     # prévôt en premier
-        (User.role == "marechal", 1),   # puis les maréchaux
-        else_=2                         # autres ensuite
-    )
-    users = (
-        User.query
-        .filter(User.role != "superadmin")
-        .order_by(role_order, User.username.asc())
-        .all()
-    )
-
-    # ---- Rendu de la page ----
-    return render_template_string("""
-{% extends "base.html" %}{% block content %}
-<h1>Gestion des utilisateurs</h1>
-
-{% with msgs = get_flashed_messages() %}
-  {% if msgs %}
-    {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
-  {% endif %}
-{% endwith %}
-
-<h3>Créer un utilisateur</h3>
-<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr auto;gap:.5rem;align-items:end;max-width:980px">
-  <div>
-    <label>Identifiant</label>
-    <input name="username" placeholder="ex: JeanDupont" required>
-  </div>
-  <div>
-    <label>Mot de passe</label>
-    <input name="password" type="password" required>
-  </div>
-  <div>
-    <label>Bureau</label>
-    <select name="bureau">
-      <option value="Armagnac & Comminges" selected>Armagnac & Comminges</option>
-    </select>
-  </div>
-  <div>
-    <label>Rôle</label>
-    <select name="role">
-      <option value="marechal" selected>maréchal</option>
-      <option value="prevot">prévôt</option>
-      <option value="superadmin">superadmin</option>
-    </select>
-  </div>
-  <button type="submit">Créer</button>
-</form>
-
-<h3 style="margin-top:1rem">Utilisateurs existants</h3>
-<form method="post">
-<table style="width:100%;max-width:980px;border-collapse:collapse">
-  <thead>
-    <tr>
-      <th></th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for u in users %}
-      <tr>
-        <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
-        <td style="padding:.4rem 0">{{ u.username }}</td>
-        <td>{{ u.bureau or '—' }}</td>
-        <td>{{ u.role }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4"><em>Aucun utilisateur</em></td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-<button type="submit">Supprimer sélection</button>
-</form>
-{% endblock %}
-""", users=users)
 
 # ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
-    villages=[v.name for v in Village.query.order_by(Village.name.asc()).all()]; blocked=is_blocked_now()
-    if request.method=="POST":
+    villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
+    blocked = is_blocked_now()
+
+    if request.method == "POST":
         if blocked:
             flash("Dépôt bloqué.")
-            return render_template("rapport.html",villages=villages,blocked=blocked)
-        village=request.form.get("village")
+            return render_template("rapport.html", villages=villages, blocked=blocked)
+
+        village = request.form.get("village")
         if not village:
             flash("Choisissez un village.")
-            return render_template("rapport.html",villages=villages,blocked=blocked)
-        tour=request.form.get("tour_de_garde")=="oui"
-        mv=request.form.get("mem_visions","").strip()
-        if tour and not mv: mv="[b]RAS.[/b]"
-        if not tour and not mv: mv="Tour de garde non effectué (autres données fournies)."
-        surv=request.form.get("surveillance",""); flux=request.form.get("flux","")
-        foreigners=request.form.get("foreigners",""); acp=request.form.get("ac_presence","")
-        ag=request.form.get("armies_groups",""); villagers=request.form.get("villagers",""); moves=request.form.get("moves","")
-        today=date.today(); bb=bbcode_report(village,today,mv,surv,flux,foreigners,acp,ag,villagers,moves)
-        r=Report(report_date=today,user_id=current_user.id,village=village,tour_de_garde=tour,mem_visions=mv,surveillance=surv,flux=flux,foreigners=foreigners,ac_presence=acp,armies_groups=ag,villagers=villagers,moves=moves,bbcode=bb)
-        db.session.add(r); db.session.commit()
-        return render_template("report_result.html",bbcode=bb,village=village,date=today.strftime("%d %B %Y"))
-    return render_template("rapport.html",villages=villages,blocked=blocked)
+            return render_template("rapport.html", villages=villages, blocked=blocked)
+
+        tour = request.form.get("tour_de_garde") == "oui"
+        mv = (request.form.get("mem_visions", "") or "").strip()
+        if tour and not mv:
+            mv = "[b]RAS.[/b]"
+        if not tour and not mv:
+            mv = "Tour de garde non effectué (autres données fournies)."
+
+        surv = request.form.get("surveillance", "")
+        flux = request.form.get("flux", "")
+        foreigners = request.form.get("foreigners", "")
+        acp = request.form.get("ac_presence", "")
+        ag = request.form.get("armies_groups", "")
+        villagers = request.form.get("villagers", "")
+        moves = request.form.get("moves", "")
+
+        today = date.today()
+        bb = bbcode_report(village, today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
+
+        r = Report(
+            report_date=today,
+            user_id=current_user.id,
+            village=village,
+            tour_de_garde=tour,
+            mem_visions=mv,
+            surveillance=surv,
+            flux=flux,
+            foreigners=foreigners,
+            ac_presence=acp,
+            armies_groups=ag,
+            villagers=villagers,
+            moves=moves,
+            bbcode=bb
+        )
+        db.session.add(r)
+        db.session.commit()
+
+        return render_template(
+            "report_result.html",
+            bbcode=bb,
+            village=village,
+            date=today.strftime("%d %B %Y")
+        )
+
+    return render_template("rapport.html", villages=villages, blocked=blocked)
 
 # ---------------------------------------------------------------------
 if __name__=="__main__":
