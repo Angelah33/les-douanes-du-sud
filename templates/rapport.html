@@ -9,20 +9,30 @@
   </div>
 {% endif %}
 
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}
+    <ul style="color:red">
+      {% for m in msgs %}
+        <li>{{ m }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
 <form method="post" style="display:flex;flex-direction:column;gap:.9rem;max-width:900px">
   {% set disabled = 'disabled' if blocked else '' %}
-  {% set tdg = (form.tdg or '') if form is defined else '' %}
-  {% set v_selected = (form.village or '') if form is defined else '' %}
 
   <!-- Ligne 1 : question + radios SUR LA MÊME LIGNE -->
   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.8rem">
     <div style="min-width:260px"><strong>Vous avez effectué votre garde :</strong></div>
     <label style="display:inline-flex;align-items:center;gap:.35rem">
-      <input type="radio" name="tour_de_garde" value="oui" {{ 'checked' if tdg == 'oui' else '' }} {{ disabled }}>
+      <input type="radio" name="tour_de_garde" value="oui"
+             {% if form and form.get('tour_de_garde') == 'oui' %}checked{% endif %} {{ disabled }}>
       Oui
     </label>
     <label style="display:inline-flex;align-items:center;gap:.35rem;">
-      <input type="radio" name="tour_de_garde" value="non" {{ 'checked' if tdg == 'non' else '' }} {{ disabled }}>
+      <input type="radio" name="tour_de_garde" value="non"
+             {% if form and form.get('tour_de_garde') == 'non' %}checked{% endif %} {{ disabled }}>
       Non
     </label>
   </div>
@@ -33,7 +43,8 @@
     <div style="display:flex;flex-wrap:nowrap;gap:1.2rem;overflow:auto;white-space:nowrap">
       {% for v in villages %}
         <label style="display:inline-flex;align-items:center;gap:.35rem">
-          <input type="radio" name="village" value="{{ v }}" {{ 'checked' if v_selected == v else '' }} {{ disabled }}>
+          <input type="radio" name="village" value="{{ v }}"
+                 {% if form and form.get('village') == v %}checked{% endif %} {{ disabled }}>
           {{ v }}
         </label>
       {% endfor %}
@@ -43,19 +54,19 @@
   <!-- Zone 1 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
     <label for="mem_visions"><strong>Vos visions et évènements :</strong></label>
-    <textarea id="mem_visions" name="mem_visions" rows="7" {{ disabled }} style="width:100%;">{{ (form.mem_visions or '') if form is defined else '' }}</textarea>
+    <textarea id="mem_visions" name="mem_visions" rows="7" {{ disabled }} style="width:100%;">{{ (form.get('mem_visions') if form else '') }}</textarea>
   </div>
 
   <!-- Zone 2 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
     <label for="villagers"><strong>Liste habitants recensés en mairie :</strong></label>
-    <textarea id="villagers" name="villagers" rows="7" {{ disabled }} style="width:100%;">{{ (form.villagers or '') if form is defined else '' }}</textarea>
+    <textarea id="villagers" name="villagers" rows="7" required {{ disabled }} style="width:100%;">{{ (form.get('villagers') if form else '') }}</textarea>
   </div>
 
   <!-- Zone 3 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
     <label for="armies_groups"><strong>Armées et groupes présents hors de la ville :</strong></label>
-    <textarea id="armies_groups" name="armies_groups" rows="7" {{ disabled }} style="width:100%;">{{ (form.armies_groups or '') if form is defined else '' }}</textarea>
+    <textarea id="armies_groups" name="armies_groups" rows="7" required {{ disabled }} style="width:100%;">{{ (form.get('armies_groups') if form else '') }}</textarea>
   </div>
 
   <div>
