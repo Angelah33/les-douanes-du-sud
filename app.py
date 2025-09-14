@@ -5,6 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
+# --- Guides: markdown + sanitisation HTML ---
+import markdown as md
+import bleach
 
 # ---------------------------------------------------------------------
 # Connexion DB : normalise l'URL et force psycopg (psycopg3)
@@ -78,6 +81,38 @@ class Report(db.Model):
     moves = db.Column(db.Text, default="")
     bbcode = db.Column(db.Text, default="")
 
+# ---------- Modèle pour Guides (Maréchal / Prévôt) ----------
+class Guide(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    audience = db.Column(db.String(20), nullable=False, unique=True)  # 'marechal' | 'prevot'
+    format = db.Column(db.String(20), nullable=False, default="markdown")
+    content = db.Column(db.Text, default="")
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = db.Column(db.String(120), default="system")
+
+# ---------- Rendu Markdown sûr (sanitize) ----------
+ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
+    "p","br","hr","pre","code","blockquote","ul","ol","li","strong","em","b","i","u",
+    "h1","h2","h3","h4","h5","h6","img","a","table","thead","tbody","tr","th","td"
+})
+ALLOWED_ATTRS = {
+    **bleach.sanitizer.ALLOWED_ATTRIBUTES,
+    "a": ["href", "title", "target", "rel"],
+    "img": ["src", "alt", "title"],
+    "table": ["border", "cellpadding", "cellspacing"]
+}
+
+def render_markdown_safe(text_md: str) -> str:
+    """Convertit Markdown -> HTML puis nettoie le HTML (bleach)."""
+    html = md.markdown(
+        text_md or "",
+        extensions=["extra", "tables", "sane_lists", "codehilite", "toc"]
+    )
+    clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
+    # nofollow + target=_blank sur les liens
+    clean = bleach.linkify(clean, callbacks=[bleach.linkifier.callbacks.nofollow, bleach.linkifier.callbacks.target_blank])
+    return clean
+
 # ---------------------------------------------------------------------
 # /setup (TEMPORAIRE) — initialisation villages + superadmin
 # ---------------------------------------------------------------------
@@ -135,6 +170,24 @@ def is_superadmin():
 
 def is_prevot():
     return current_user.is_authenticated and getattr(current_user, "role", "") == "prevot"
+
+# ---------- Seed / garantie d'existence des 2 guides ----------
+def ensure_guides_exist():
+    """Crée les lignes guides 'marechal' & 'prevot' si absentes."""
+    changed = False
+    if not Guide.query.filter_by(audience="marechal").first():
+        g = Guide(audience="marechal", content="*(Vide)*\n\nRédigez ici le **Guide maréchal**.")
+        db.session.add(g); changed = True
+    if not Guide.query.filter_by(audience="prevot").first():
+        g = Guide(audience="prevot", content="*(Vide)*\n\nRédigez ici le **Guide prévôt**.")
+        db.session.add(g); changed = True
+    if changed:
+        db.session.commit()
+
+# Appel auto au démarrage (assure les tables + guides)
+with app.app_context():
+    db.create_all()
+    ensure_guides_exist()
 
 # ---------------------------------------------------------------------
 # Génération BBCode du rapport maréchal
@@ -211,6 +264,34 @@ def logout():
     logout_user()
     return redirect(url_for("home"))
 
+# ---------- Lecture des guides : renvoie du HTML à injecter en modale ----------
+@app.route("/guide/<audience>")
+@login_required
+def guide_read(audience):
+    # Autorisations :
+    # - maréchal : peut lire "marechal"
+    # - prévôt   : peut lire "prevot" ET "marechal"
+    # - superadmin : peut lire tout (mais pas de lien dans la barre)
+    role = getattr(current_user, "role", "")
+    allowed = False
+    if role == "marechal" and audience == "marechal":
+        allowed = True
+    elif role == "prevot" and audience in ("prevot", "marechal"):
+        allowed = True
+    elif role == "superadmin":
+        allowed = True
+
+    if not allowed:
+        return "Non autorisé", 403
+
+    g = Guide.query.filter_by(audience=audience).first()
+    if not g:
+        return "<em>Guide introuvable.</em>", 404
+
+    html = render_markdown_safe(g.content)
+    # On renvoie juste le fragment HTML (le JS du template l'injecte dans la modale)
+    return html
+
 # ---------- Routeur de tableaux de bord ----------
 @app.route("/dashboard")
 @login_required
@@ -223,6 +304,78 @@ def dashboard():
     else:
         return redirect(url_for("rapport"))
 
+# ---------- Édition des guides (Super-admin uniquement) ----------
+@app.route("/admin/guides", methods=["GET", "POST"])
+@login_required
+def admin_guides():
+    if not is_superadmin():
+        abort(403)
+
+    gm = Guide.query.filter_by(audience="marechal").first()
+    gp = Guide.query.filter_by(audience="prevot").first()
+
+    if request.method == "POST":
+        # Sécurité simple : champs attendus
+        new_gm = request.form.get("content_marechal", "")
+        new_gp = request.form.get("content_prevot", "")
+        if gm:
+            gm.content = new_gm
+            gm.updated_by = current_user.username
+        if gp:
+            gp.content = new_gp
+            gp.updated_by = current_user.username
+        db.session.commit()
+        flash("Guides enregistrés.")
+        return redirect(url_for("admin_guides"))
+
+    # Aperçu live côté client : on refait un rendu initial pour affichage
+    gm_html = render_markdown_safe(gm.content if gm else "")
+    gp_html = render_markdown_safe(gp.content if gp else "")
+
+    return render_template_string("""
+{% extends "base.html" %}{% block content %}
+<h1>Gérer les guides</h1>
+<p><em>(Édition réservée au Super-admin)</em></p>
+
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}
+    {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="post" style="display:grid;gap:1rem;grid-template-columns:1fr 1fr;align-items:start">
+  <div>
+    <h3>Guide maréchal (Markdown)</h3>
+    <textarea name="content_marechal" style="width:100%;height:300px">{{ (gm.content if gm else '')|e }}</textarea>
+    <h4>Aperçu</h4>
+    <div id="preview_marechal" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gm_html|safe }}</div>
+  </div>
+  <div>
+    <h3>Guide prévôt (Markdown)</h3>
+    <textarea name="content_prevot" style="width:100%;height:300px">{{ (gp.content if gp else '')|e }}</textarea>
+    <h4>Aperçu</h4>
+    <div id="preview_prevot" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gp_html|safe }}</div>
+  </div>
+
+  <div style="grid-column:1/-1">
+    <button type="submit">Enregistrer</button>
+  </div>
+</form>
+
+<script>
+  // Aperçu “live” basique : quand on tape, on met un message
+  // (le rendu Markdown “vrai” sera fait côté serveur après Enregistrer)
+  const pm = document.querySelector("textarea[name='content_marechal']");
+  const pp = document.querySelector("textarea[name='content_prevot']");
+  const vm = document.getElementById("preview_marechal");
+  const vp = document.getElementById("preview_prevot");
+  if (pm && vm) pm.addEventListener("input", ()=>{ vm.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
+  if (pp && vp) pp.addEventListener("input", ()=>{ vp.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
+</script>
+
+{% endblock %}
+""", gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
+
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -233,6 +386,7 @@ def admin_dashboard():
 <h1>Tableau de bord — Admin</h1>
 <ul>
   <li><a href="{{ url_for('admin_users') }}">Gérer les utilisateurs</a></li>
+  <li><a href="{{ url_for('admin_guides') }}">Gérer les guides</a></li>
   <li><a href="{{ url_for('rapport') }}">Saisir un rapport</a></li>
 </ul>
 {% endblock %}
