@@ -1,1 +1,68 @@
-{% extends 'base.html' %}{% block content %}<h2>Déposer un rapport</h2>{% if blocked %}<p><b>Dépôt bloqué entre 03:00 et 05:00.</b></p>{% endif %}<form method='post'><div>Vous avez effectué votre garde à :</div>{% for v in villages %}<label><input type='radio' name='village' value='{{v}}'> {{v}}</label>&nbsp;&nbsp;{% endfor %}<br><label><input type='radio' name='tour_de_garde' value='oui' checked> Oui</label><label><input type='radio' name='tour_de_garde' value='non'> Non</label><br><textarea name='mem_visions'></textarea><br><textarea name='surveillance'></textarea><br><textarea name='flux'></textarea><br><textarea name='foreigners'></textarea><br><textarea name='ac_presence'></textarea><br><textarea name='armies_groups'></textarea><br><textarea name='villagers'></textarea><br><textarea name='moves'></textarea><br><button type='submit' {% if blocked %}disabled{% endif %}>Générer</button></form>{% endblock %}
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Déposer un rapport</h1>
+
+{% if blocked %}
+  <div style="background:#ffd3d3;border:1px solid #cc6a6a;padding:.6rem;margin:.6rem 0;">
+    Dépôt de rapports momentanément bloqué (créneau horaire).
+  </div>
+{% endif %}
+
+<form method="post" style="display:flex;flex-direction:column;gap:.9rem;max-width:900px">
+  {% set disabled = 'disabled' if blocked else '' %}
+  {% set tdg = (form.tdg or '') if form is defined else '' %}
+  {% set v_selected = (form.village or '') if form is defined else '' %}
+
+  <!-- Ligne 1 : question + radios SUR LA MÊME LIGNE -->
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.8rem">
+    <div style="min-width:260px"><strong>Vous avez effectué votre garde :</strong></div>
+    <label style="display:inline-flex;align-items:center;gap:.35rem">
+      <input type="radio" name="tour_de_garde" value="oui" {{ 'checked' if tdg == 'oui' else '' }} {{ disabled }}>
+      Oui
+    </label>
+    <label style="display:inline-flex;align-items:center;gap:.35rem;">
+      <input type="radio" name="tour_de_garde" value="non" {{ 'checked' if tdg == 'non' else '' }} {{ disabled }}>
+      Non
+    </label>
+  </div>
+
+  <!-- Ligne 2 : villages à la suite sur la même ligne -->
+  <div>
+    <div style="margin-bottom:.4rem"><strong>Vous l'avez faite dans le village de :</strong></div>
+    <div style="display:flex;flex-wrap:nowrap;gap:1.2rem;overflow:auto;white-space:nowrap">
+      {% for v in villages %}
+        <label style="display:inline-flex;align-items:center;gap:.35rem">
+          <input type="radio" name="village" value="{{ v }}" {{ 'checked' if v_selected == v else '' }} {{ disabled }}>
+          {{ v }}
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Zone 1 -->
+  <div style="display:flex;flex-direction:column;gap:.35rem">
+    <label for="mem_visions"><strong>Vos visions et évènements :</strong></label>
+    <textarea id="mem_visions" name="mem_visions" rows="7" {{ disabled }} style="width:100%;">{{ (form.mem_visions or '') if form is defined else '' }}</textarea>
+  </div>
+
+  <!-- Zone 2 -->
+  <div style="display:flex;flex-direction:column;gap:.35rem">
+    <label for="villagers"><strong>Liste habitants recensés en mairie :</strong></label>
+    <textarea id="villagers" name="villagers" rows="7" {{ disabled }} style="width:100%;">{{ (form.villagers or '') if form is defined else '' }}</textarea>
+  </div>
+
+  <!-- Zone 3 -->
+  <div style="display:flex;flex-direction:column;gap:.35rem">
+    <label for="armies_groups"><strong>Armées et groupes présents hors de la ville :</strong></label>
+    <textarea id="armies_groups" name="armies_groups" rows="7" {{ disabled }} style="width:100%;">{{ (form.armies_groups or '') if form is defined else '' }}</textarea>
+  </div>
+
+  <div>
+    <button type="submit" {{ disabled }}>Générer le rapport</button>
+  </div>
+</form>
+
+<hr>
+<div>Pour toute information ou problème, contactez IG : Agatha.isabella</div>
+{% endblock %}
