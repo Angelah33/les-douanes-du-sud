@@ -252,18 +252,19 @@ def prevot_dashboard():
 {% endblock %}
 """)
 
-# ---------- Gestion simple des utilisateurs (réservé superadmin) ----------
+# ---------- Gestion des utilisateurs (réservé superadmin) ----------
 from sqlalchemy import case
 
 @app.route("/admin/users", methods=["GET", "POST"])
 @login_required
 def admin_users():
+    # ---- Vérification des droits ----
     if not is_superadmin():
         abort(403)
 
-    # --- Création & suppression ---
+    # ---- Création & suppression ----
     if request.method == "POST":
-        # Suppression multiple
+        # Suppression multiple (cases cochées)
         to_delete = request.form.getlist("delete_user")
         if to_delete:
             for uid in to_delete:
@@ -274,7 +275,7 @@ def admin_users():
             flash("Comptes supprimés.")
             return redirect(url_for("admin_users"))
 
-        # Création
+        # Création d’un nouvel utilisateur
         uname  = (request.form.get("username") or "").strip()
         pwd    = (request.form.get("password") or "").strip()
         role   = (request.form.get("role") or "marechal").strip()
@@ -292,19 +293,21 @@ def admin_users():
             flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
         return redirect(url_for("admin_users"))
 
-    # --- Liste SANS tri sophistiqué (test) ---
+    # ---- Récupération de la liste des utilisateurs ----
+    # (superadmin exclus, car il doit rester caché)
+    role_order = case(
+        (User.role == "prevot", 0),     # prévôt en premier
+        (User.role == "marechal", 1),   # puis les maréchaux
+        else_=2                         # autres ensuite
+    )
     users = (
         User.query
         .filter(User.role != "superadmin")
-        .order_by(User.username.asc())
+        .order_by(role_order, User.username.asc())
         .all()
     )
 
-    # DEBUG temporaire : combien de comptes on voit ?
-    flash(f"Debug: {len(users)} utilisateurs visibles (hors superadmin).")
-    
-
-    # Rendu
+    # ---- Rendu de la page ----
     return render_template_string("""
 {% extends "base.html" %}{% block content %}
 <h1>Gestion des utilisateurs</h1>
