@@ -113,8 +113,8 @@ def render_markdown_safe(text_md: str) -> str:
     clean = bleach.linkify(
         clean,
         callbacks=[
-            bleach.linkifier.callbacks.nofollow,
-            bleach.linkifier.callbacks.target_blank,
+            bleach.callbacks.nofollow,
+            bleach.callbacks.target_blank,
         ],
     )
     return clean
