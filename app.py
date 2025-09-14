@@ -502,7 +502,6 @@ def prevot_dashboard():
 {% endblock %}
 """)
 
-
 # ---------- Formulaire Rapport Maréchal ----------
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
@@ -510,78 +509,76 @@ def rapport():
     villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
     blocked = is_blocked_now()
 
-    # état du formulaire pour (ré)afficher les valeurs saisies
-    def empty_form():
-        return {
-            "tdg": "",                 # "oui" | "non"
-            "village": "",             # nom du village
-            "mem_visions": "",         # zone 1
-            "villagers": "",           # zone 2
-            "armies_groups": "",       # zone 3
-        }
-
-    form = empty_form()
+    # Petit helper pour relancer le template sans perdre ce qui a été saisi
+    def rerender():
+        # On repasse tout ce qui a été saisi pour que le template le ré-affiche
+        return render_template(
+            "rapport.html",
+            villages=villages,
+            blocked=blocked,
+            form=request.form  # important : on envoie la saisie courante
+        )
 
     if request.method == "POST":
         if blocked:
             flash("Dépôt bloqué.")
-            # On garde ce qui a été saisi (au cas où le client a contourné le disabled)
-            form.update({
-                "tdg": request.form.get("tour_de_garde", ""),
-                "village": request.form.get("village", ""),
-                "mem_visions": (request.form.get("mem_visions", "") or ""),
-                "villagers": (request.form.get("villagers", "") or ""),
-                "armies_groups": (request.form.get("armies_groups", "") or ""),
-            })
-            return render_template("rapport.html", villages=villages, blocked=blocked, form=form)
+            return rerender()
 
-        # Récupération des saisies
-        form["tdg"] = request.form.get("tour_de_garde", "")
-        form["village"] = request.form.get("village", "")
-        form["mem_visions"] = (request.form.get("mem_visions", "") or "")
-        form["villagers"] = (request.form.get("villagers", "") or "")
-        form["armies_groups"] = (request.form.get("armies_groups", "") or "")
+        # Récupération des champs
+        garde_val = request.form.get("tour_de_garde", "")  # "oui" / "non" / "" si rien coché
+        village   = (request.form.get("village") or "").strip()
+        mv        = (request.form.get("mem_visions") or "").strip()
+        surv      = (request.form.get("surveillance") or "").strip()
+        flux      = (request.form.get("flux") or "").strip()
+        foreigners= (request.form.get("foreigners") or "").strip()
+        acp       = (request.form.get("ac_presence") or "").strip()
+        ag        = (request.form.get("armies_groups") or "").strip()
+        villagers = (request.form.get("villagers") or "").strip()
+        moves     = (request.form.get("moves") or "").strip()
 
-        # Validations
+        # Accumuler les erreurs
         errors = []
-        if form["tdg"] not in ("oui", "non"):
-            errors.append("Indiquez si vous avez effectué votre garde (Oui/Non).")
-        if not form["village"]:
-            errors.append("Choisissez un village.")
-        if not form["villagers"].strip():
-            errors.append("Renseignez la « Liste habitants recensés en mairie ».")
-        if not form["armies_groups"].strip():
-            errors.append("Renseignez « Armées et groupes présents hors de la ville ».")
 
+        # 1) Radio "garde" obligatoire
+        if garde_val not in ("oui", "non"):
+            errors.append("Indiquez si la garde a été effectuée (oui / non).")
+
+        # 2) Village obligatoire (et doit exister)
+        if not village:
+            errors.append("Choisissez un village.")
+        elif village not in villages:
+            errors.append("Le village choisi est invalide.")
+
+        # 3) Habitants obligatoire
+        if not villagers.strip():
+            errors.append("Renseignez la liste des habitants recensés en mairie.")
+
+        # 4) Armées/Groupes obligatoire
+        if not ag.strip():
+            errors.append("Renseignez les armées et groupes présents hors de la ville.")
+
+        # Si erreurs : on flashe tout et on ré-affiche SANS perdre la saisie
         if errors:
             for e in errors:
                 flash(e)
-            return render_template("rapport.html", villages=villages, blocked=blocked, form=form)
+            return rerender()
 
-        # OK : fabrication du rapport
-        tour = (form["tdg"] == "oui")
-        mv = form["mem_visions"].strip()
+        # Normalisation “visions” : si garde = oui et vide -> RAS ; si garde = non et vide -> message clair
+        tour = (garde_val == "oui")
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
 
-        # Les autres champs (facultatifs) existants restent vides
-        surv = ""
-        flux = ""
-        foreigners = ""
-        acp = ""
-        ag = form["armies_groups"]
-        villagers = form["villagers"]
-        moves = ""
-
+        # Création du BBCode (ton format existant)
         today = date.today()
-        bb = bbcode_report(form["village"], today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
+        bb = bbcode_report(village, today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
 
+        # Sauvegarde en base
         r = Report(
             report_date=today,
             user_id=current_user.id,
-            village=form["village"],
+            village=village,
             tour_de_garde=tour,
             mem_visions=mv,
             surveillance=surv,
@@ -596,15 +593,16 @@ def rapport():
         db.session.add(r)
         db.session.commit()
 
+        # Affichage du résultat
         return render_template(
             "report_result.html",
             bbcode=bb,
-            village=form["village"],
+            village=village,
             date=today.strftime("%d %B %Y")
         )
 
-    # GET : formulaire vierge
-    return render_template("rapport.html", villages=villages, blocked=blocked, form=empty_form())
+    # GET : afficher le formulaire (aucune saisie encore)
+    return render_template("rapport.html", villages=villages, blocked=blocked, form=None)
 
 # ---------------------------------------------------------------------
 if __name__=="__main__":
