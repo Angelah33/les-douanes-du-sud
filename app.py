@@ -510,38 +510,78 @@ def rapport():
     villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
     blocked = is_blocked_now()
 
+    # état du formulaire pour (ré)afficher les valeurs saisies
+    def empty_form():
+        return {
+            "tdg": "",                 # "oui" | "non"
+            "village": "",             # nom du village
+            "mem_visions": "",         # zone 1
+            "villagers": "",           # zone 2
+            "armies_groups": "",       # zone 3
+        }
+
+    form = empty_form()
+
     if request.method == "POST":
         if blocked:
             flash("Dépôt bloqué.")
-            return render_template("rapport.html", villages=villages, blocked=blocked)
+            # On garde ce qui a été saisi (au cas où le client a contourné le disabled)
+            form.update({
+                "tdg": request.form.get("tour_de_garde", ""),
+                "village": request.form.get("village", ""),
+                "mem_visions": (request.form.get("mem_visions", "") or ""),
+                "villagers": (request.form.get("villagers", "") or ""),
+                "armies_groups": (request.form.get("armies_groups", "") or ""),
+            })
+            return render_template("rapport.html", villages=villages, blocked=blocked, form=form)
 
-        village = request.form.get("village")
-        if not village:
-            flash("Choisissez un village.")
-            return render_template("rapport.html", villages=villages, blocked=blocked)
+        # Récupération des saisies
+        form["tdg"] = request.form.get("tour_de_garde", "")
+        form["village"] = request.form.get("village", "")
+        form["mem_visions"] = (request.form.get("mem_visions", "") or "")
+        form["villagers"] = (request.form.get("villagers", "") or "")
+        form["armies_groups"] = (request.form.get("armies_groups", "") or "")
 
-        tour = request.form.get("tour_de_garde") == "oui"
-        mv = (request.form.get("mem_visions", "") or "").strip()
+        # Validations
+        errors = []
+        if form["tdg"] not in ("oui", "non"):
+            errors.append("Indiquez si vous avez effectué votre garde (Oui/Non).")
+        if not form["village"]:
+            errors.append("Choisissez un village.")
+        if not form["villagers"].strip():
+            errors.append("Renseignez la « Liste habitants recensés en mairie ».")
+        if not form["armies_groups"].strip():
+            errors.append("Renseignez « Armées et groupes présents hors de la ville ».")
+
+        if errors:
+            for e in errors:
+                flash(e)
+            return render_template("rapport.html", villages=villages, blocked=blocked, form=form)
+
+        # OK : fabrication du rapport
+        tour = (form["tdg"] == "oui")
+        mv = form["mem_visions"].strip()
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
 
-        surv = request.form.get("surveillance", "")
-        flux = request.form.get("flux", "")
-        foreigners = request.form.get("foreigners", "")
-        acp = request.form.get("ac_presence", "")
-        ag = request.form.get("armies_groups", "")
-        villagers = request.form.get("villagers", "")
-        moves = request.form.get("moves", "")
+        # Les autres champs (facultatifs) existants restent vides
+        surv = ""
+        flux = ""
+        foreigners = ""
+        acp = ""
+        ag = form["armies_groups"]
+        villagers = form["villagers"]
+        moves = ""
 
         today = date.today()
-        bb = bbcode_report(village, today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
+        bb = bbcode_report(form["village"], today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
 
         r = Report(
             report_date=today,
             user_id=current_user.id,
-            village=village,
+            village=form["village"],
             tour_de_garde=tour,
             mem_visions=mv,
             surveillance=surv,
@@ -559,11 +599,12 @@ def rapport():
         return render_template(
             "report_result.html",
             bbcode=bb,
-            village=village,
+            village=form["village"],
             date=today.strftime("%d %B %Y")
         )
 
-    return render_template("rapport.html", villages=villages, blocked=blocked)
+    # GET : formulaire vierge
+    return render_template("rapport.html", villages=villages, blocked=blocked, form=empty_form())
 
 # ---------------------------------------------------------------------
 if __name__=="__main__":
