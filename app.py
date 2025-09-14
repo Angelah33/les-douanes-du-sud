@@ -6,7 +6,7 @@ from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
 # --- Guides: markdown + sanitisation HTML ---
-import markdown as md
+import markdown
 import bleach
 
 # ---------------------------------------------------------------------
@@ -104,13 +104,25 @@ ALLOWED_ATTRS = {
 
 def render_markdown_safe(text_md: str) -> str:
     """Convertit Markdown -> HTML puis nettoie le HTML (bleach)."""
-    html = md.markdown(
+    html = markdown.markdown(
         text_md or "",
-        extensions=["extra", "tables", "sane_lists", "codehilite", "toc"]
+        extensions=["extra", "tables", "sane_lists", "codehilite", "toc"],
+        output_format="html5",
     )
-    clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
+    clean = bleach.clean(
+        html,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRS,
+        strip=True,
+    )
     # nofollow + target=_blank sur les liens
-    clean = bleach.linkify(clean, callbacks=[bleach.linkifier.callbacks.nofollow, bleach.linkifier.callbacks.target_blank])
+    clean = bleach.linkify(
+        clean,
+        callbacks=[
+            bleach.linkifier.callbacks.nofollow,
+            bleach.linkifier.callbacks.target_blank,
+        ],
+    )
     return clean
 
 # ---------------------------------------------------------------------
