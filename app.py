@@ -106,15 +106,9 @@ def render_markdown_safe(text_md: str) -> str:
     """Convertit Markdown -> HTML puis nettoie le HTML (bleach)."""
     html = markdown.markdown(
         text_md or "",
-        extensions=["extra", "tables", "sane_lists", "codehilite", "toc"],
-        output_format="html5",
+        extensions=["extra", "tables", "sane_lists", "codehilite", "toc"]
     )
-    clean = bleach.clean(
-        html,
-        tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRS,
-        strip=True,
-    )
+    clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
     # nofollow + target=_blank sur les liens
     clean = bleach.linkify(
         clean,
