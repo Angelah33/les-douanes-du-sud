@@ -6,8 +6,7 @@ from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
 # --- Guides: markdown + sanitisation HTML ---
--import markdown
-+import markdown as md
+import markdown as md
 import bleach
 
 # ---------------------------------------------------------------------
