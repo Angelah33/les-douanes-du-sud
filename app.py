@@ -114,44 +114,6 @@ def render_markdown_safe(text_md: str) -> str:
     return clean
 
 # ---------------------------------------------------------------------
-# /setup (TEMPORAIRE) — initialisation villages + superadmin
-# ---------------------------------------------------------------------
-@app.route("/setup")
-def setup():
-    expected = os.getenv("SETUP_TOKEN", "AC-Prevot_2025!")
-    token = request.args.get("token", "")
-    if token != expected:
-        return "Accès refusé", 403
-
-    try:
-        db.create_all()
-
-        villages = [
-            "Auch", "Eauze", "Lectoure", "Muret",
-            "Saint Bertrand de Comminges", "Saint Liziers"
-        ]
-        created_v = 0
-        for name in villages:
-            if not Village.query.filter_by(name=name).first():
-                db.session.add(Village(name=name))
-                created_v += 1
-
-        admin_login = os.getenv("SETUP_ADMIN_LOGIN", "Agatha.isabella")
-        admin_pass = os.getenv("SETUP_ADMIN_PASSWORD", "AC-Prevot!2025#")
-        u = User.query.filter_by(username=admin_login).first()
-        if not u:
-            u = User(username=admin_login, role="superadmin")
-            u.set_password(admin_pass)
-            db.session.add(u)
-
-        db.session.commit()
-        return f"OK — villages ajoutés: {created_v}. Super-admin: {admin_login}", 200
-
-    except Exception as e:
-        app.logger.exception("Échec de setup()")
-        return f"Erreur d'initialisation: {e}", 500
-
-# ---------------------------------------------------------------------
 # Login / helpers
 # ---------------------------------------------------------------------
 @login_manager.user_loader
