@@ -612,15 +612,15 @@ def rapport():
             date=today.strftime("%d %B %Y")
         )
 
-# GET : afficher le formulaire (aucune saisie encore)
-villages_traite_today = get_villages_traite_today()
-return render_template(
-    "rapport.html",
-    villages=villages,
-    blocked=blocked,
-    form=None,
-    villages_traite_today=villages_traite_today
-)
+    # GET : afficher le formulaire
+    villages_traite_today = get_villages_traite_today()
+    return render_template(
+        "rapport.html",
+        villages=villages,
+        blocked=blocked,
+        form=None,
+        villages_traite_today=villages_traite_today
+    )
 
 # ---------------------------------------------------------------------
 if __name__=="__main__":
