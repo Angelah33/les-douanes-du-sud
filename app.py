@@ -508,11 +508,6 @@ def get_villages_traite_today():
     today = date.today()
     rapports_du_jour = Report.query.filter_by(report_date=today).all()
     return [r.village for r in rapports_du_jour]
-
-@app.route("/rapport", methods=["GET", "POST"])
-@login_required
-def rapport():
-    ...
     
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
