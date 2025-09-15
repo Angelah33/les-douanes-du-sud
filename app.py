@@ -503,6 +503,17 @@ def prevot_dashboard():
 """)
 
 # ---------- Formulaire Rapport Maréchal ----------
+# Bloc : villages déjà traités aujourd'hui
+def get_villages_traite_today():
+    today = date.today()
+    rapports_du_jour = Report.query.filter_by(report_date=today).all()
+    return [r.village for r in rapports_du_jour]
+
+@app.route("/rapport", methods=["GET", "POST"])
+@login_required
+def rapport():
+    ...
+    
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
@@ -601,8 +612,15 @@ def rapport():
             date=today.strftime("%d %B %Y")
         )
 
-    # GET : afficher le formulaire (aucune saisie encore)
-    return render_template("rapport.html", villages=villages, blocked=blocked, form=None)
+# GET : afficher le formulaire (aucune saisie encore)
+villages_traite_today = get_villages_traite_today()
+return render_template(
+    "rapport.html",
+    villages=villages,
+    blocked=blocked,
+    form=None,
+    villages_traite_today=villages_traite_today
+)
 
 # ---------------------------------------------------------------------
 if __name__=="__main__":
