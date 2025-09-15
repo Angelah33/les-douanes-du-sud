@@ -43,13 +43,14 @@
     <div style="display:flex;flex-wrap:nowrap;gap:1.2rem;overflow:auto;white-space:nowrap">
       {% for v in villages %}
         <label style="display:inline-flex;align-items:center;gap:.35rem">
-          
-<!-- 🔘 Bloc : Désactivation des villages déjà traités -->
-<input type="radio" name="village" value="{{ v }}"
-  {% if form and form.get('village') == v %}checked{% endif %}
-  {% if v in villages_traite_today %}disabled class="village-option disabled"{% endif %}>
-<label>{{ v }}</label>
-    {% endfor %}
+          <input type="radio" name="village" value="{{ v }}"
+            {% if form and form.get('village') == v %}checked{% endif %}
+            {% if v in villages_traite_today %}disabled class="village-option disabled"{% endif %}>
+          {{ v }}
+        </label>
+      {% endfor %}
+    </div>
+  </div>
 
   <!-- Zone 1 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
@@ -59,7 +60,7 @@
 
   <!-- Zone 2 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
-    <label for="villagers"><strong>Liste habitants recensés en mairie :</strong></label>
+    <label for="villagers"><strong>Liste des villageois recensés en mairie :</strong></label>
     <textarea id="villagers" name="villagers" rows="7" required {{ disabled }} style="width:100%;">{{ (form.get('villagers') if form else '') }}</textarea>
   </div>
 
@@ -73,4 +74,10 @@
     <button type="submit" {{ disabled }}>Générer le rapport</button>
   </div>
 </form>
+
+<hr style="margin-top:2rem;">
+
+<p style="font-size:0.9rem;color:#666;text-align:center;">
+  Pour toute information ou problème, contactez IG : <strong>Agatha.isabella</strong>
+</p>
 {% endblock %}
