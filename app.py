@@ -5,6 +5,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
+def get_jour_de_jeu():
+    now = datetime.now()
+    heure = now.hour
+
+    if heure < 3:
+        return (now - timedelta(days=1)).date()
+    elif 3 <= heure < 5:
+        return None  # période de maintenance
+    else:
+        return now.date()
 # --- Guides: markdown + sanitisation HTML ---
 import markdown
 import bleach
