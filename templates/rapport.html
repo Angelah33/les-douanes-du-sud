@@ -43,13 +43,12 @@
     <div style="display:flex;flex-wrap:nowrap;gap:1.2rem;overflow:auto;white-space:nowrap">
       {% for v in villages %}
         <label style="display:inline-flex;align-items:center;gap:.35rem">
-          <input type="radio" name="village" value="{{ v }}"
-                 {% if form and form.get('village') == v %}checked{% endif %} {{ disabled }}>
-          {{ v }}
-        </label>
-      {% endfor %}
-    </div>
-  </div>
+          
+<!-- 🔘 Bloc : Désactivation des villages déjà traités -->
+<input type="radio" name="village" value="{{ v }}"
+  {% if form and form.get('village') == v %}checked{% endif %}
+  {% if v in villages_traite_today %}disabled class="village-option disabled"{% endif %}>
+<label>{{ v }}</label>
 
   <!-- Zone 1 -->
   <div style="display:flex;flex-direction:column;gap:.35rem">
