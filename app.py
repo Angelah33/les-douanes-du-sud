@@ -524,15 +524,18 @@ def get_villages_traite_today():
 def rapport():
     villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
     blocked = is_blocked_now()
+    jour_de_jeu = get_jour_de_jeu()
 
     # Petit helper pour relancer le template sans perdre ce qui a été saisi
     def rerender():
-        # On repasse tout ce qui a été saisi pour que le template le ré-affiche
+        villages_traite_today = get_villages_traite(jour_de_jeu) if jour_de_jeu else []
         return render_template(
             "rapport.html",
             villages=villages,
             blocked=blocked,
-            form=request.form  # important : on envoie la saisie courante
+            form=request.form,
+            villages_traite_today=villages_traite_today,
+            jour_de_jeu=jour_de_jeu
         )
 
     if request.method == "POST":
@@ -565,9 +568,9 @@ def rapport():
         elif village not in villages:
             errors.append("Le village choisi est invalide.")
 
-        # 3) Habitants obligatoire
+        # 3) Villageois obligatoire
         if not villagers.strip():
-            errors.append("Renseignez la liste des habitants recensés en mairie.")
+            errors.append("Renseignez la liste des villageois recensés en mairie.")
 
         # 4) Armées/Groupes obligatoire
         if not ag.strip():
@@ -587,12 +590,11 @@ def rapport():
             mv = "Tour de garde non effectué (autres données fournies)."
 
         # Création du BBCode (ton format existant)
-        today = date.today()
-        bb = bbcode_report(village, today, mv, surv, flux, foreigners, acp, ag, villagers, moves)
+        bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, foreigners, acp, ag, villagers, moves)
 
         # Sauvegarde en base
         r = Report(
-            report_date=today,
+            report_date=jour_de_jeu,
             user_id=current_user.id,
             village=village,
             tour_de_garde=tour,
@@ -614,17 +616,18 @@ def rapport():
             "report_result.html",
             bbcode=bb,
             village=village,
-            date=today.strftime("%d %B %Y")
+            date=jour_de_jeu.strftime("%d %B %Y")
         )
 
     # GET : afficher le formulaire
-    villages_traite_today = get_villages_traite_today()
+    villages_traite_today = get_villages_traite(jour_de_jeu) if jour_de_jeu else []
     return render_template(
         "rapport.html",
         villages=villages,
         blocked=blocked,
         form=None,
-        villages_traite_today=villages_traite_today
+        villages_traite_today=villages_traite_today,
+        jour_de_jeu=jour_de_jeu
     )
 
 # ---------------------------------------------------------------------
