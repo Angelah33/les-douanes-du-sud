@@ -1,53 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Gérer les maréchaux — A&amp;C</h1>
 
-{% with msgs = get_flashed_messages() %}
-  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
-{% endwith %}
+<h1>Gérer les maréchaux — A&C</h1>
 
-<h3>Nommer un maréchal</h3>
-<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr auto;gap:.5rem;align-items:end;max-width:980px">
-  <div>
-    <label>Identifiant</label>
-    <input name="username" placeholder="ex: JeanDupont" required>
+<h2>Nommer un maréchal</h2>
+<form method="POST">
+  <div style="margin-bottom: 1em;">
+    <label for="username">Identifiant :</label><br>
+    <input type="text" name="username" id="username" required>
   </div>
-  <div>
-    <label>Mot de passe</label>
-    <input name="password" type="text" placeholder="AC123456 ou AC 123" required>
-    <small>Format: AC + chiffres</small>
+
+  <div style="margin-bottom: 1em;">
+    <label for="password">Mot de passe :</label><br>
+    <input type="text" name="password" id="password" required>
+    <small style="display:block; color: #555;">Ex : AC123456 ou AC 123</small>
   </div>
-  <div>
-    <label>Bureau</label>
-    <input value="A&amp;C" disabled>
+
+  <div style="margin-bottom: 1em;">
+    <label>Bureau :</label><br>
+    <input type="text" value="Armagnac & Comminges" disabled>
   </div>
+
+  <div style="margin-bottom: 1em;">
+    <label>Rôle :</label><br>
+    <input type="text" value="maréchal" disabled>
+  </div>
+
   <button type="submit">Créer</button>
 </form>
 
-<h3 style="margin-top:1rem">Maréchaux A&amp;C en poste</h3>
-<form method="post">
-  <table style="width:100%;max-width:980px;border-collapse:collapse">
+<hr>
+
+<h2>Maréchaux A&C</h2>
+<form method="POST">
+  <table border="1" cellpadding="6" cellspacing="0">
     <thead>
       <tr>
-        <th></th>
-        <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
-        <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
-        <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
+        <th>Supprimer</th>
+        <th>Identifiant</th>
+        <th>Bureau</th>
+        <th>Rôle</th>
       </tr>
     </thead>
     <tbody>
-      {% for u in users %}
-        <tr>
-          <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
-          <td style="padding:.4rem 0">{{ u.username }}</td>
-          <td>{{ u.bureau }}</td>
-          <td>{{ u.role }}</td>
-        </tr>
-      {% else %}
-        <tr><td colspan="4"><em>Aucun maréchal A&amp;C</em></td></tr>
+      {% for user in users %}
+      <tr>
+        <td><input type="checkbox" name="delete_user" value="{{ user.id }}"></td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.bureau }}</td>
+        <td>{{ user.role }}</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
   <button type="submit">Supprimer sélection</button>
 </form>
+
+<hr>
+<p style="font-size: 0.9em; color: #666;">Pour toute question, contacter IG : <strong>Agatha.isabella</strong></p>
+
 {% endblock %}
