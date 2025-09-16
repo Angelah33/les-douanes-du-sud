@@ -518,6 +518,37 @@ def prevot_dashboard():
 {% endblock %}
 """)
 
+# ---------- Routes UI du prévôt ----------
+@app.route("/prevot/marechaux")
+@login_required
+def gestion_marechaux():
+    return "Page Gérer les maréchaux — en construction"
+
+@app.route("/prevot/rapports-jour")
+@login_required
+def rapports_du_jour():
+    return "Page Consulter les rapports du jour — en construction"
+
+@app.route("/prevot/rediger-rapport")
+@login_required
+def rediger_rapport():
+    return "Page Rédiger/rectifier un rapport — en construction"
+
+@app.route("/prevot/synthese-douane")
+@login_required
+def synthese_douane():
+    return "Page Gérer la synthèse de douane — en construction"
+
+@app.route("/prevot/annotations")
+@login_required
+def gestion_annotations():
+    return "Page Gérer les annotations de personnes — en construction"
+
+@app.route("/prevot/gardes")
+@login_required
+def tableau_gardes():
+    return "Page Tableau des gardes — en construction"
+
 # ---------- Formulaire Rapport Maréchal ----------
 # Bloc : villages déjà traités aujourd'hui
 def get_villages_traite_today():
