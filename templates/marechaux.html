@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Gérer les maréchaux — A&amp;C</h1>
+
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+{% endwith %}
+
+<h3>Nommer un maréchal</h3>
+<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr auto;gap:.5rem;align-items:end;max-width:980px">
+  <div>
+    <label>Identifiant</label>
+    <input name="username" placeholder="ex: JeanDupont" required>
+  </div>
+  <div>
+    <label>Mot de passe</label>
+    <input name="password" type="text" placeholder="AC123456 ou AC 123" required>
+    <small>Format: AC + chiffres</small>
+  </div>
+  <div>
+    <label>Bureau</label>
+    <input value="A&amp;C" disabled>
+  </div>
+  <button type="submit">Créer</button>
+</form>
+
+<h3 style="margin-top:1rem">Maréchaux A&amp;C en poste</h3>
+<form method="post">
+  <table style="width:100%;max-width:980px;border-collapse:collapse">
+    <thead>
+      <tr>
+        <th></th>
+        <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
+        <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
+        <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+        <tr>
+          <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
+          <td style="padding:.4rem 0">{{ u.username }}</td>
+          <td>{{ u.bureau }}</td>
+          <td>{{ u.role }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4"><em>Aucun maréchal A&amp;C</em></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit">Supprimer sélection</button>
+</form>
+{% endblock %}
