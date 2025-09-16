@@ -545,7 +545,7 @@ def gestion_marechaux():
         import re
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
-        elif not re.match(r"^AC ?\d+$", pwd):
+        elif not re.match(r"^AC\d+$", pwd):
             flash("Mot de passe invalide : utilise 'AC' suivi de chiffres.")
         elif User.query.filter_by(username=uname).first():
             flash("Cet utilisateur existe déjà.")
@@ -567,12 +567,42 @@ def gestion_marechaux():
 
     return render_template("marechaux.html", users=users)
 
-# ---------- Routes UI du prévôt ----------
-@app.route("/prevot/rapports-jour")
+from datetime import datetime, timedelta
+from flask import render_template
+from models import Village, Report
+
+def jour_actif():
+    now = datetime.now()
+    seuil = now.replace(hour=5, minute=0, second=0, microsecond=0)
+    if now < seuil:
+        return (now - timedelta(days=1)).date()
+    return now.date()
+
+@app.route("/prevot/rapports-jour", methods=["GET"], endpoint="rapports_du_jour")
 @login_required
 def rapports_du_jour():
-    return "Page Consulter les rapports du jour — en construction"
+    if current_user.role != "prevot":
+        abort(403)
 
+    jour = jour_actif()
+    villages = Village.query.order_by(Village.name.asc()).all()
+
+    rapports_faits = []
+    rapports_manquants = []
+
+    for village in villages:
+        rapport = Report.query.filter_by(village=village.name, report_date=jour).first()
+        if rapport:
+            rapports_faits.append((village.name, rapport.id))
+        else:
+            rapports_manquants.append(village.name)
+
+    return render_template("rapports_jour.html",
+                           jour=jour,
+                           faits=rapports_faits,
+                           manquants=rapports_manquants)
+
+# ---------- Routes UI du prévôt ----------
 @app.route("/prevot/rectifier-rapport")
 @login_required
 def rectifier_rapport():
