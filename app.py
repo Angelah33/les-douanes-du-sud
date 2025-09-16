@@ -503,16 +503,16 @@ def prevot_dashboard():
     role = getattr(current_user, "role", "")
     if role not in ("prevot", "superadmin"):
         abort(403)
-    return render_template_string("""
+return render_template_string("""
 {% extends "base.html" %}
 {% block content %}
 <h1>Tableau de bord — Prévôt</h1>
 <ul>
   <li><a href="{{ url_for('gestion_marechaux') }}">Gérer les maréchaux</a></li>
   <li><a href="{{ url_for('rapports_du_jour') }}">Consulter les rapports du jour</a></li>
-  <li><a href="{{ url_for('rediger_rapport') }}">Rédiger/rectifier un rapport</a></li>
+  <li><a href="{{ url_for('rectifier_rapport') }}">Rectifier un rapport</a></li>
   <li><a href="{{ url_for('synthese_douane') }}">Gérer la synthèse de douane</a></li>
-  <li><a href="{{ url_for('gestion_annotations') }}">Gérer les annotations de personnes</a></li>
+  <li><a href="{{ url_for('gestion_brigands') }}">Gérer les listes des brigands.</a></li>
   <li><a href="{{ url_for('tableau_gardes') }}">Tableau des gardes</a></li>
 </ul>
 {% endblock %}
@@ -529,20 +529,20 @@ def gestion_marechaux():
 def rapports_du_jour():
     return "Page Consulter les rapports du jour — en construction"
 
-@app.route("/prevot/rediger-rapport")
+@app.route("/prevot/rectifier-rapport")
 @login_required
-def rediger_rapport():
-    return "Page Rédiger/rectifier un rapport — en construction"
+def def rectifier_rapport():
+    return "Page Rectifier un rapport — en construction"
 
 @app.route("/prevot/synthese-douane")
 @login_required
 def synthese_douane():
     return "Page Gérer la synthèse de douane — en construction"
 
-@app.route("/prevot/annotations")
+@app.route("/prevot/brigands")
 @login_required
-def gestion_annotations():
-    return "Page Gérer les annotations de personnes — en construction"
+def gestion_brigands():
+    return "Page Gérer les listes de brigands — en construction"
 
 @app.route("/prevot/gardes")
 @login_required
