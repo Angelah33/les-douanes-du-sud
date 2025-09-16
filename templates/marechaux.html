@@ -4,32 +4,32 @@
 <h1>Gérer les maréchaux — A&C</h1>
 
 <h2>Nommer un maréchal</h2>
-<form method="POST">
-  <div style="margin-bottom: 1em;">
+<form method="POST" style="display: flex; flex-wrap: wrap; gap: 1em; align-items: flex-start;">
+  <div>
     <label for="username">Identifiant :</label><br>
     <input type="text" name="username" id="username" required>
   </div>
 
-  <div style="margin-bottom: 1em;">
+  <div>
     <label for="password">Mot de passe :</label><br>
     <input type="text" name="password" id="password" required>
     <small style="display:block; color: #555;">Ex : AC123456 ou AC 123</small>
   </div>
 
-  <div style="margin-bottom: 1em;">
+  <div>
     <label>Bureau :</label><br>
     <input type="text" value="Armagnac & Comminges" disabled>
   </div>
 
-  <div style="margin-bottom: 1em;">
+  <div>
     <label>Rôle :</label><br>
     <input type="text" value="maréchal" disabled>
   </div>
 
-  <button type="submit">Créer</button>
+  <div style="align-self: end;">
+    <button type="submit">Créer</button>
+  </div>
 </form>
-
-<hr>
 
 <h2>Maréchaux A&C</h2>
 <form method="POST">
@@ -56,7 +56,6 @@
   <button type="submit">Supprimer sélection</button>
 </form>
 
-<hr>
-<p style="font-size: 0.9em; color: #666;">Pour toute question, contacter IG : <strong>Agatha.isabella</strong></p>
+<p style="font-size: 0.9em; color: #666;">Pour toute question ou problème, contacter IG : <strong>Agatha.isabella</strong></p>
 
 {% endblock %}
