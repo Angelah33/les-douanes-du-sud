@@ -740,6 +740,14 @@ def rapport():
         jour_de_jeu=jour_de_jeu
     )
 
+@app.route("/rapport/<int:rapport_id>", methods=["GET"], endpoint="voir_rapport")
+@login_required
+def voir_rapport(rapport_id):
+    rapport = Report.query.get_or_404(rapport_id)
+    if current_user.role not in ["prevot", "marechal"]:
+        abort(403)
+    return render_template("rapport_lecture.html", rapport=rapport)
+
 # ---------------------------------------------------------------------
 if __name__=="__main__":
     app.run(host="0.0.0.0",port=5000)
