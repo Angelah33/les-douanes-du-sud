@@ -518,6 +518,55 @@ def prevot_dashboard():
     {% endblock %}
     """)
 
+@app.route("/prevot/marechaux", methods=["GET", "POST"], endpoint="gestion_marechaux")
+@login_required
+def gestion_marechaux():
+    if current_user.role != "prevot":
+        abort(403)
+
+    bureau_ac = "Armagnac & Comminges"
+
+    # Suppression
+    if request.method == "POST" and request.form.getlist("delete_user"):
+        to_delete = request.form.getlist("delete_user")
+        for uid in to_delete:
+            user = User.query.get(int(uid))
+            if user and user.role == "marechal" and user.bureau == bureau_ac:
+                db.session.delete(user)
+        db.session.commit()
+        flash("Maréchaux A&C supprimés.")
+        return redirect(url_for("gestion_marechaux"))
+
+    # Création
+    if request.method == "POST" and not request.form.getlist("delete_user"):
+        uname = (request.form.get("username") or "").strip()
+        pwd   = (request.form.get("password") or "").strip()
+
+        import re
+        if not uname or not pwd:
+            flash("Renseigne un identifiant et un mot de passe.")
+        elif not re.match(r"^AC ?\d+$", pwd):
+            flash("Mot de passe invalide : utilise 'AC' suivi de chiffres.")
+        elif User.query.filter_by(username=uname).first():
+            flash("Cet utilisateur existe déjà.")
+        else:
+            u = User(username=uname, role="marechal", bureau=bureau_ac)
+            u.set_password(pwd)
+            db.session.add(u)
+            db.session.commit()
+            flash(f"Maréchal {uname} (A&C) créé.")
+        return redirect(url_for("gestion_marechaux"))
+
+    # Liste des maréchaux A&C
+    users = (
+        User.query
+        .filter_by(role="marechal", bureau=bureau_ac)
+        .order_by(User.username.asc())
+        .all()
+    )
+
+    return render_template("marechaux.html", users=users)
+
 # ---------- Routes UI du prévôt ----------
 @app.route("/prevot/marechaux")
 @login_required
