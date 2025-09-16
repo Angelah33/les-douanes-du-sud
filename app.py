@@ -569,7 +569,6 @@ def gestion_marechaux():
 
 from datetime import datetime, timedelta
 from flask import render_template
-from models import Village, Report
 
 def jour_actif():
     now = datetime.now()
