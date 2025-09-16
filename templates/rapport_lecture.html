@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Rapport du {{ rapport.report_date.strftime('%d/%m/%Y') }}</h2>
+
+  <div style="margin-bottom: 1.5rem;">
+    <p><strong>Village :</strong> {{ rapport.village }}</p>
+    <p><strong>Tour de garde :</strong> {{ 'Oui' if rapport.tour_de_garde else 'Non' }}</p>
+    <p><strong>Rédigé par :</strong> Utilisateur #{{ rapport.user_id }}</p>
+    <p><strong>Date de création :</strong> {{ rapport.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+  </div>
+
+  <hr>
+
+  <div style="margin-bottom: 2rem;">
+    <h3>Visions et évènements</h3>
+    <pre>{{ rapport.mem_visions }}</pre>
+
+    <h3>Surveillance</h3>
+    <pre>{{ rapport.surveillance }}</pre>
+
+    <h3>Flux</h3>
+    <pre>{{ rapport.flux }}</pre>
+
+    <h3>Étrangers</h3>
+    <pre>{{ rapport.foreigners }}</pre>
+
+    <h3>Présence AC</h3>
+    <pre>{{ rapport.ac_presence }}</pre>
+
+    <h3>Armées et groupes</h3>
+    <pre>{{ rapport.armies_groups }}</pre>
+
+    <h3>Villageois recensés</h3>
+    <pre>{{ rapport.villagers }}</pre>
+
+    <h3>Mouvements</h3>
+    <pre>{{ rapport.moves }}</pre>
+  </div>
+
+  <hr>
+
+  <div style="margin-top: 2rem;">
+    <h3>BBCode généré</h3>
+    <pre>{{ rapport.bbcode }}</pre>
+  </div>
+
+  <p style="font-size:0.9rem;color:#666;text-align:center;margin-top:2rem;">
+    Rapport consulté via la prévôté — Agatha.isabella
+  </p>
+{% endblock %}
