@@ -568,11 +568,6 @@ def gestion_marechaux():
     return render_template("marechaux.html", users=users)
 
 # ---------- Routes UI du prévôt ----------
-@app.route("/prevot/marechaux")
-@login_required
-def gestion_marechaux():
-    return "Page Gérer les maréchaux — en construction"
-
 @app.route("/prevot/rapports-jour")
 @login_required
 def rapports_du_jour():
