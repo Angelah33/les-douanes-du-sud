@@ -504,10 +504,16 @@ def prevot_dashboard():
     if role not in ("prevot", "superadmin"):
         abort(403)
     return render_template_string("""
-{% extends "base.html" %}{% block content %}
+{% extends "base.html" %}
+{% block content %}
 <h1>Tableau de bord — Prévôt</h1>
 <ul>
-  <li><a href="{{ url_for('rapport') }}">Consulter / Saisir des rapports</a></li>
+  <li><a href="{{ url_for('gestion_marechaux') }}">Gérer les maréchaux</a></li>
+  <li><a href="{{ url_for('rapports_du_jour') }}">Consulter les rapports du jour</a></li>
+  <li><a href="{{ url_for('rediger_rapport') }}">Rédiger/rectifier un rapport</a></li>
+  <li><a href="{{ url_for('synthese_douane') }}">Gérer la synthèse de douane</a></li>
+  <li><a href="{{ url_for('gestion_annotations') }}">Gérer les annotations de personnes</a></li>
+  <li><a href="{{ url_for('tableau_gardes') }}">Tableau des gardes</a></li>
 </ul>
 {% endblock %}
 """)
