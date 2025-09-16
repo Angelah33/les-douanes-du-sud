@@ -628,7 +628,7 @@ def get_villages_traite_today():
     today = date.today()
     rapports_du_jour = Report.query.filter_by(report_date=today).all()
     return [r.village for r in rapports_du_jour]
-    
+
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
@@ -654,55 +654,47 @@ def rapport():
             return rerender()
 
         # Récupération des champs
-        garde_val = request.form.get("tour_de_garde", "")  # "oui" / "non" / "" si rien coché
-        village   = (request.form.get("village") or "").strip()
-        mv        = (request.form.get("mem_visions") or "").strip()
-        surv      = (request.form.get("surveillance") or "").strip()
-        flux      = (request.form.get("flux") or "").strip()
-        foreigners= (request.form.get("foreigners") or "").strip()
-        acp       = (request.form.get("ac_presence") or "").strip()
-        ag        = (request.form.get("armies_groups") or "").strip()
-        villagers = (request.form.get("villagers") or "").strip()
-        moves     = (request.form.get("moves") or "").strip()
+        garde_val  = request.form.get("tour_de_garde", "")
+        village    = (request.form.get("village") or "").strip()
+        mv         = (request.form.get("mem_visions") or "").strip()
+        surv       = (request.form.get("surveillance") or "").strip()
+        flux       = (request.form.get("flux") or "").strip()
+        foreigners = (request.form.get("foreigners") or "").strip()
+        acp        = (request.form.get("ac_presence") or "").strip()
+        ag         = (request.form.get("armies_groups") or "").strip()
+        villagers  = (request.form.get("villagers") or "").strip()
+        moves      = (request.form.get("moves") or "").strip()
 
         # Accumuler les erreurs
         errors = []
 
-        # 1) Radio "garde" obligatoire
         if garde_val not in ("oui", "non"):
             errors.append("Indiquez si la garde a été effectuée (oui / non).")
-
-        # 2) Village obligatoire (et doit exister)
         if not village:
             errors.append("Choisissez un village.")
         elif village not in villages:
             errors.append("Le village choisi est invalide.")
-
-        # 3) Villageois obligatoire
         if not villagers.strip():
             errors.append("Renseignez la liste des villageois recensés en mairie.")
-
-        # 4) Armées/Groupes obligatoire
         if not ag.strip():
             errors.append("Renseignez les armées et groupes présents hors de la ville.")
 
-        # Si erreurs : on flashe tout et on ré-affiche SANS perdre la saisie
         if errors:
             for e in errors:
                 flash(e)
             return rerender()
 
-        # Normalisation “visions” : si garde = oui et vide -> RAS ; si garde = non et vide -> message clair
+        # Normalisation “visions”
         tour = (garde_val == "oui")
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
 
-        # Création du BBCode (ton format existant)
+        # Création du BBCode
         bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, foreigners, acp, ag, villagers, moves)
 
-        # Sauvegarde en base
+        # Sauvegarde
         r = Report(
             report_date=jour_de_jeu,
             user_id=current_user.id,
@@ -722,11 +714,12 @@ def rapport():
         db.session.commit()
 
         # Affichage du résultat
+        date_str = jour_de_jeu.strftime("%d %B %Y") if jour_de_jeu else "Date inconnue"
         return render_template(
             "report_result.html",
             bbcode=bb,
             village=village,
-            date=jour_de_jeu.strftime("%d %B %Y")
+            date=date_str
         )
 
     # GET : afficher le formulaire
