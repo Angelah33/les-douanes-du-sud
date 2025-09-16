@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2 style="margin-bottom: 30px;">📋 Rapports du jour — {{ jour.strftime("%d/%m/%Y") }}</h2>
+
+  {% if manquants %}
+    <div style="background-color: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
+      <h3 style="color: crimson; margin-top: 0;">🔴 Il manque les rapports de :</h3>
+      <ul style="margin-top: 10px;">
+        {% for village in manquants %}
+          <li>{{ village }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <div style="background-color: #f0fff0; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
+      <p style="color: green;">✅ Tous les villages ont un rapport aujourd’hui.</p>
+    </div>
+  {% endif %}
+
+  {% if faits %}
+    <div style="background-color: #f0f8ff; padding: 15px; border-radius: 8px;">
+      <h3 style="color: darkgreen; margin-top: 0;">🟢 Rapports faits :</h3>
+      <ul style="margin-top: 10px;">
+        {% for village, rapport_id in faits %}
+          <li>
+            <a href="{{ url_for('voir_rapport', rapport_id=rapport_id) }}">
+              {{ village }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% endblock %}
