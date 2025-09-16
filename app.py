@@ -638,7 +638,7 @@ def rapport():
 
     # Petit helper pour relancer le template sans perdre ce qui a été saisi
     def rerender():
-        villages_traite_today = get_villages_traite(jour_de_jeu) if jour_de_jeu else []
+        villages_traite_today = get_villages_traite_today()
         return render_template(
             "rapport.html",
             villages=villages,
