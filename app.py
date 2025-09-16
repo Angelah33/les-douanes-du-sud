@@ -531,7 +531,7 @@ def rapports_du_jour():
 
 @app.route("/prevot/rectifier-rapport")
 @login_required
-def def rectifier_rapport():
+def rectifier_rapport():
     return "Page Rectifier un rapport — en construction"
 
 @app.route("/prevot/synthese-douane")
