@@ -495,7 +495,6 @@ def admin_dashboard():
 {% endblock %}
 """)
 
-
 # ---------- Tableau de bord Prévôt ----------
 @app.route("/prevot/dashboard")
 @login_required
@@ -503,20 +502,21 @@ def prevot_dashboard():
     role = getattr(current_user, "role", "")
     if role not in ("prevot", "superadmin"):
         abort(403)
-return render_template_string("""
-{% extends "base.html" %}
-{% block content %}
-<h1>Tableau de bord — Prévôt</h1>
-<ul>
-  <li><a href="{{ url_for('gestion_marechaux') }}">Gérer les maréchaux</a></li>
-  <li><a href="{{ url_for('rapports_du_jour') }}">Consulter les rapports du jour</a></li>
-  <li><a href="{{ url_for('rectifier_rapport') }}">Rectifier un rapport</a></li>
-  <li><a href="{{ url_for('synthese_douane') }}">Gérer la synthèse de douane</a></li>
-  <li><a href="{{ url_for('gestion_brigands') }}">Gérer les listes des brigands.</a></li>
-  <li><a href="{{ url_for('tableau_gardes') }}">Tableau des gardes</a></li>
-</ul>
-{% endblock %}
-""")
+    
+    return render_template_string("""
+    {% extends "base.html" %}
+    {% block content %}
+    <h1>Tableau de bord — Prévôt</h1>
+    <ul>
+      <li><a href="{{ url_for('gestion_marechaux') }}">Gérer les maréchaux</a></li>
+      <li><a href="{{ url_for('rapports_du_jour') }}">Consulter les rapports du jour</a></li>
+      <li><a href="{{ url_for('rectifier_rapport') }}">Rectifier un rapport</a></li>
+      <li><a href="{{ url_for('synthese_douane') }}">Gérer la synthèse de douane</a></li>
+      <li><a href="{{ url_for('gestion_brigands') }}">Gérer les listes des brigands.</a></li>
+      <li><a href="{{ url_for('tableau_gardes') }}">Tableau des gardes</a></li>
+    </ul>
+    {% endblock %}
+    """)
 
 # ---------- Routes UI du prévôt ----------
 @app.route("/prevot/marechaux")
