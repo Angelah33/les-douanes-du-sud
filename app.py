@@ -723,7 +723,7 @@ def rapport():
         )
 
     # GET : afficher le formulaire
-    villages_traite_today = get_villages_traite(jour_de_jeu) if jour_de_jeu else []
+    villages_traite_today = get_villages_traite_today()
     return render_template(
         "rapport.html",
         villages=villages,
