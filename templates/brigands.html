@@ -13,12 +13,12 @@
     <form id="createForm" class="grid">
       <div class="field">
         <label for="name">Nom IG</label>
-        <input type="text" id="name" required placeholder="Ex: Bidule" />
+        <input type="text" id="name" name="name" required placeholder="Ex: Bidule" />
       </div>
 
       <div class="field">
         <label for="primaryList">Liste principale</label>
-        <select id="primaryList" required>
+        <select id="primaryList" name="list" required>
           <option value="surveillance">Liste de surveillance</option>
           <option value="noire">Liste noire</option>
           <option value="hors">Liste noire hors A&C</option>
@@ -28,19 +28,19 @@
 
       <div class="field span-2">
         <label for="facts">Faits reprochés</label>
-        <textarea id="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
+        <textarea id="facts" name="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
       </div>
 
       <div class="field check">
-        <label><input type="checkbox" id="isCrown" /> Recherché par la couronne</label>
+        <label><input type="checkbox" id="isCrown" name="is_crown" /> Recherché par la couronne</label>
       </div>
       <div class="field check">
-        <label><input type="checkbox" id="isPNG" /> PNG</label>
+        <label><input type="checkbox" id="isPNG" name="is_png" /> PNG</label>
       </div>
 
       <div class="field">
         <label for="orderSelect">Organisation brigande</label>
-        <select id="orderSelect">
+        <select id="orderSelect" name="order">
           <option value="">Aucun</option>
         </select>
       </div>
@@ -55,7 +55,7 @@
   <section class="card">
     <h2>Modification / Suppression d’un brigand</h2>
     <form id="editSearchForm" class="grid">
-      <div class="field">
+      <div class="field span-2">
         <label for="editSearch">Nom IG à modifier</label>
         <input type="text" id="editSearch" placeholder="Ex: Bidule" />
         <button type="button" class="btn">Rechercher</button>
@@ -80,11 +80,11 @@
         <form id="orderForm" class="grid">
           <div class="field">
             <label for="orderName">Nom complet</label>
-            <input type="text" id="orderName" required />
+            <input type="text" id="orderName" name="name" required />
           </div>
           <div class="field">
             <label for="orderShort">Nom abrégé</label>
-            <input type="text" id="orderShort" required />
+            <input type="text" id="orderShort" name="short" required />
           </div>
           <div class="actions">
             <button class="btn brigand" type="submit">Ajouter</button>
@@ -132,13 +132,13 @@
       <button class="close" id="closeModal" aria-label="Fermer">×</button>
     </div>
     <form id="editForm" class="grid">
-      <input type="hidden" id="editId" />
-      <div class="field"><label for="editName">Nom IG</label><input type="text" id="editName" required /></div>
-      <div class="field"><label for="editPrimary">Liste principale</label><select id="editPrimary" required></select></div>
-      <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" rows="3"></textarea></div>
-      <div class="field check"><label><input type="checkbox" id="editCrown" /> Recherché par la couronne</label></div>
-      <div class="field check"><label><input type="checkbox" id="editPNG" /> PNG</label></div>
-      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" required></select></div>
+      <input type="hidden" id="editId" name="id" />
+      <div class="field"><label for="editName">Nom IG</label><input type="text" id="editName" name="name" required /></div>
+      <div class="field"><label for="editPrimary">Liste principale</label><select id="editPrimary" name="list" required></select></div>
+      <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" name="facts" rows="3"></textarea></div>
+      <div class="field check"><label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label></div>
+      <div class="field check"><label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label></div>
+      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order" required></select></div>
       <div class="actions">
         <button type="submit" class="btn primary">Valider</button>
         <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>
