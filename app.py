@@ -548,6 +548,28 @@ def api_brigands():
         })
     return jsonify(result)
 
+from flask import request, jsonify
+from app import db
+from models import Brigand  # adapte si tes modèles sont dans app.py directement
+
+@app.route("/api/brigands", methods=["POST"])
+def create_brigand():
+    data = request.get_json()
+    if not data or "name" not in data or "list" not in data:
+        return jsonify({"error": "Champs obligatoires manquants"}), 400
+
+    brigand = Brigand(
+        name=data["name"].strip(),
+        list=data["list"],
+        facts=data.get("facts", "").strip(),
+        is_crown=bool(data.get("is_crown")),
+        is_png=bool(data.get("is_png")),
+        order=data.get("order", "").strip()
+    )
+    db.session.add(brigand)
+    db.session.commit()
+    return jsonify({"success": True, "id": brigand.id})
+
 # ---------- Interfaces prévôtales ----------
 
 @app.route("/brigands")
