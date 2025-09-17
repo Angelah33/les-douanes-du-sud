@@ -100,6 +100,15 @@ class Guide(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.String(120), default="system")
 
+class Brigand(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    list = db.Column(db.String(20), nullable=False)  # noire, surveillance, hors, archives
+    facts = db.Column(db.Text, default="")
+    is_crown = db.Column(db.Boolean, default=False)
+    is_png = db.Column(db.Boolean, default=False)
+    order = db.Column(db.String(120), default="")  # nom abrégé de l'organisation
+
 # ---------- Rendu Markdown sûr (sanitize) ----------
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
     "p","br","hr","pre","code","blockquote","ul","ol","li","strong","em","b","i","u",
