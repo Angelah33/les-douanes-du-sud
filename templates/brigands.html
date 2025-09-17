@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+
+<header class="topbar">
+  <h1>Gestion des brigands</h1>
+</header>
+
+<main class="container">
+  <!-- Bloc création -->
+  <section class="card">
+    <h2>Création d’un brigand</h2>
+    <form id="createForm" class="grid">
+      <div class="field">
+        <label for="name">Nom IG</label>
+        <input type="text" id="name" required placeholder="Ex: Bidule" />
+      </div>
+
+      <div class="field">
+        <label for="primaryList">Liste principale</label>
+        <select id="primaryList" required>
+          <option value="noire">Liste noire</option>
+          <option value="surveillance">Surveillance</option>
+          <option value="hors">Liste noire hors A&C</option>
+          <option value="archives">Archives</option>
+        </select>
+      </div>
+
+      <div class="field span-2">
+        <label for="facts">Faits reprochés (optionnel)</label>
+        <textarea id="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
+      </div>
+
+      <div class="field check">
+        <label><input type="checkbox" id="isCrown" /> Recherché par la couronne</label>
+      </div>
+      <div class="field check">
+        <label><input type="checkbox" id="isPNG" /> PNG</label>
+      </div>
+
+      <div class="field">
+        <label for="orderSelect">Ordre brigand</label>
+        <select id="orderSelect" required></select>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn primary">Ajouter</button>
+        <button type="reset" class="btn">Réinitialiser</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="principales">Listes principales</button>
+    <button class="tab" data-tab="annotatives">Couronne · PNG · Ordres</button>
+  </div>
+
+  <!-- Listes principales -->
+  <section id="tab-principales" class="tabpane active">
+    <section class="card"><h3>Liste noire</h3><div id="table-noire"></div></section>
+    <section class="card"><h3>Surveillance</h3><div id="table-surveillance"></div></section>
+    <section class="card"><h3>Liste noire hors A&amp;C</h3><div id="table-hors"></div></section>
+    <section class="card"><h3>Archives</h3><div id="table-archives"></div></section>
+  </section>
+
+  <!-- Listes annotatives -->
+  <section id="tab-annotatives" class="tabpane">
+    <section class="card"><h3>Recherchés par la couronne</h3><div id="table-couronne"></div></section>
+    <section class="card"><h3>PNG</h3><div id="table-png"></div></section>
+    <section class="card">
+      <h3>Ordres brigands</h3>
+      <div class="orders-layout">
+        <div class="orders-manage">
+          <h4>Gérer les ordres</h4>
+          <form id="orderForm" class="grid">
+            <div class="field">
+              <label for="orderName">Nom complet</label>
+              <input type="text" id="orderName" required />
+            </div>
+            <div class="field">
+              <label for="orderShort">Nom abrégé</label>
+              <input type="text" id="orderShort" required />
+            </div>
+            <div class="actions">
+              <button class="btn" type="submit">Ajouter ordre</button>
+            </div>
+          </form>
+          <div id="ordersTable"></div>
+        </div>
+        <div class="orders-members">
+          <h4>Membres par ordre</h4>
+          <div id="ordersMembers"></div>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<!-- Modal d’édition -->
+<div id="modal" class="modal hidden" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Modifier l’entrée</h3>
+      <button class="close" id="closeModal" aria-label="Fermer">×</button>
+    </div>
+    <form id="editForm" class="grid">
+      <input type="hidden" id="editId" />
+      <div class="field"><label for="editName">Nom IG</label><input type="text" id="editName" required /></div>
+      <div class="field"><label for="editPrimary">Liste principale</label><select id="editPrimary" required></select></div>
+      <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" rows="3"></textarea></div>
+      <div class="field check"><label><input type="checkbox" id="editCrown" /> Recherché par la couronne</label></div>
+      <div class="field check"><label><input type="checkbox" id="editPNG" /> PNG</label></div>
+      <div class="field"><label for="editOrder">Ordre brigand</label><select id="editOrder" required></select></div>
+      <div class="actions">
+        <button type="submit" class="btn primary">Valider</button>
+        <button type="button" class="btn" id="deleteEntry">Supprimer</button>
+        <button type="button" class="btn" id="cancelEdit">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer">
+  <p>Prévoit — interface de gestion. Mentions et couleurs appliquées à l’export BBCode.</p>
+</footer>
+
+<!-- Liens vers les fichiers statiques -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/brigands.css') }}">
+<script src="{{ url_for('static', filename='js/brigands.js') }}"></script>
+
+{% endblock %}
