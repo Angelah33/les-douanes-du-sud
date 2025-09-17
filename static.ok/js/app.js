@@ -562,3 +562,83 @@ function hideModal() {
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
 }
+
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => {
+    if (k === 'class') node.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  });
+  children.forEach(c => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return node;
+}
+
+function renderTable(container, rows) {
+  if (!rows.length) {
+    container.innerHTML = '';
+    container.appendChild(el('div', { class: 'badge' }, ['Aucune entrée']));
+    return;
+  }
+
+  const table = el('table', { class: 'table' });
+  const thead = el('thead', {}, [
+    el('tr', {}, [
+      el('th', {}, ['Nom IG']),
+      el('th', {}, ['Faits reprochés']),
+    ])
+  ]);
+
+  const tbody = el('tbody');
+  rows.forEach(r => {
+    tbody.appendChild(
+      el('tr', {}, [
+        el('td', {}, [r.name || '—']),
+        el('td', {}, [r.facts || '—']),
+      ])
+    );
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+
+  container.innerHTML = '';
+  container.appendChild(table);
+}
+
+async function loadBrigandTables() {
+  const targets = {
+    noire: document.getElementById('table-noire'),
+    surveillance: document.getElementById('table-surveillance'),
+    hors: document.getElementById('table-hors'),
+    archives: document.getElementById('table-archives'),
+  };
+
+  Object.values(targets).forEach(div => {
+    if (div) div.innerHTML = '<div class="badge">Chargement…</div>';
+  });
+
+  try {
+    const res = await fetch('/api/brigands', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const groups = { noire: [], surveillance: [], hors: [], archives: [] };
+    (Array.isArray(data) ? data : []).forEach(b => {
+      const key = b.list;
+      if (key in groups) groups[key].push(b);
+    });
+
+    Object.entries(groups).forEach(([key, rows]) => {
+      const container = targets[key];
+      if (container) renderTable(container, rows);
+    });
+  } catch (err) {
+    console.error('Erreur chargement brigands:', err);
+    Object.values(targets).forEach(div => {
+      if (div) div.innerHTML = '<div class="badge">Erreur de chargement</div>';
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadBrigandTables);
