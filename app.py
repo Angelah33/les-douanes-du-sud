@@ -31,7 +31,7 @@ def pg_uri(uri: str) -> str:
         uri = uri.replace("postgresql://", "postgresql+psycopg://", 1)
     return uri
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static.ok")
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
 db_url = os.getenv("DATABASE_URL", "sqlite:///local.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = pg_uri(db_url)
