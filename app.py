@@ -528,6 +528,26 @@ def prevot_dashboard():
     {% endblock %}
     """)
 
+from flask import jsonify
+from app import db
+from models import Brigand  # adapte selon ton structure si besoin
+
+@app.route("/api/brigands")
+def api_brigands():
+    brigands = Brigand.query.order_by(Brigand.name.asc()).all()
+    result = []
+    for b in brigands:
+        result.append({
+            "id": b.id,
+            "name": b.name,
+            "list": b.list,
+            "facts": b.facts,
+            "is_crown": b.is_crown,
+            "is_png": b.is_png,
+            "order": b.order
+        })
+    return jsonify(result)
+
 # ---------- Interfaces prévôtales ----------
 
 @app.route("/brigands")
