@@ -134,7 +134,7 @@ def render_markdown_safe(text_md: str) -> str:
 # ---------------------------------------------------------------------
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 def parse_hhmm(s): h,m = s.split(":"); return time(int(h),int(m))
 def is_blocked_now():
