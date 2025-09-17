@@ -72,7 +72,7 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
     if (res.ok) {
       alert("Brigand ajouté !");
       e.target.reset();
-      // Tu peux aussi recharger les listes ici si tu veux
+      reloadBrigands();
     } else {
       alert("Erreur : " + result.error);
     }
@@ -81,6 +81,46 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
     alert("Erreur réseau");
   }
 });
+
+async function reloadBrigands() {
+  try {
+    const res = await fetch("/api/brigands");
+    const data = await res.json();
+    brigands = data;
+    renderAllTables(); // ← on ajoute cette fonction juste après
+  } catch (err) {
+    console.error("Erreur lors du rechargement des brigands :", err);
+  }
+}
+
+function renderAllTables() {
+  const tables = {
+    noire: document.getElementById("table-noire"),
+    surveillance: document.getElementById("table-surveillance"),
+    hors: document.getElementById("table-hors"),
+    archives: document.getElementById("table-archives"),
+    couronne: document.getElementById("table-couronne"),
+    png: document.getElementById("table-png"),
+    orders: document.getElementById("table-orders")
+  };
+
+  // Nettoyer les tableaux
+  for (const key in tables) {
+    tables[key].innerHTML = "";
+  }
+
+  // Répartir les brigands
+  brigands.forEach((b) => {
+    const div = document.createElement("div");
+    div.className = "brigand-entry";
+    div.textContent = b.name + (b.facts ? " — " + b.facts : "");
+
+    if (tables[b.list]) tables[b.list].appendChild(div);
+    if (b.is_crown) tables.couronne.appendChild(div.cloneNode(true));
+    if (b.is_png) tables.png.appendChild(div.cloneNode(true));
+    if (b.order && b.order !== "none") tables.orders.appendChild(div.cloneNode(true));
+  });
+}
 
 // =========== Utils ===========
 function cuid() {
