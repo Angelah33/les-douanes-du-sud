@@ -496,13 +496,14 @@ def admin_dashboard():
 """)
 
 # ---------- Tableau de bord Prévôt ----------
+
 @app.route("/prevot/dashboard")
 @login_required
 def prevot_dashboard():
     role = getattr(current_user, "role", "")
-    if role not in ("prevot", "superadmin"):
+    if role not in ("prevot", "admin", "superadmin"):
         abort(403)
-    
+
     return render_template_string("""
     {% extends "base.html" %}
     {% block content %}
@@ -512,11 +513,20 @@ def prevot_dashboard():
       <li><a href="{{ url_for('rapports_du_jour') }}">Consulter les rapports du jour</a></li>
       <li><a href="{{ url_for('rectifier_rapport') }}">Rectifier un rapport</a></li>
       <li><a href="{{ url_for('synthese_douane') }}">Gérer la synthèse de douane</a></li>
-      <li><a href="{{ url_for('gestion_brigands') }}">Gérer les listes des brigands.</a></li>
+      <li><a href="{{ url_for('brigands') }}">Gérer les listes des brigands</a></li>
       <li><a href="{{ url_for('tableau_gardes') }}">Tableau des gardes</a></li>
     </ul>
     {% endblock %}
     """)
+
+# ---------- Interfaces prévôtales ----------
+
+@app.route("/brigands")
+@login_required
+def brigands():
+    if current_user.role not in ["prevot", "admin"]:
+        abort(403)
+    return render_template("brigands.html")
 
 @app.route("/prevot/marechaux", methods=["GET", "POST"], endpoint="gestion_marechaux")
 @login_required
@@ -601,29 +611,29 @@ def rapports_du_jour():
                            faits=rapports_faits,
                            manquants=rapports_manquants)
 
-# ---------- Routes UI du prévôt ----------
 @app.route("/prevot/rectifier-rapport")
 @login_required
 def rectifier_rapport():
-    return "Page Rectifier un rapport — en construction"
+    if current_user.role != "prevot":
+        abort(403)
+    return render_template_string("<h2>Rectification des rapports — à venir</h2>")
 
 @app.route("/prevot/synthese-douane")
 @login_required
 def synthese_douane():
-    return "Page Gérer la synthèse de douane — en construction"
-
-@app.route("/prevot/brigands")
-@login_required
-def gestion_brigands():
-    return "Page Gérer les listes de brigands — en construction"
+    if current_user.role != "prevot":
+        abort(403)
+    return render_template_string("<h2>Synthèse de douane — à venir</h2>")
 
 @app.route("/prevot/gardes")
 @login_required
 def tableau_gardes():
-    return "Page Tableau des gardes — en construction"
+    if current_user.role != "prevot":
+        abort(403)
+    return render_template_string("<h2>Tableau des gardes — à venir</h2>")
 
 # ---------- Formulaire Rapport Maréchal ----------
-# Bloc : villages déjà traités aujourd'hui
+
 def get_villages_traite_today():
     today = date.today()
     rapports_du_jour = Report.query.filter_by(report_date=today).all()
@@ -636,7 +646,6 @@ def rapport():
     blocked = is_blocked_now()
     jour_de_jeu = get_jour_de_jeu()
 
-    # Petit helper pour relancer le template sans perdre ce qui a été saisi
     def rerender():
         villages_traite_today = get_villages_traite_today()
         return render_template(
@@ -653,7 +662,6 @@ def rapport():
             flash("Dépôt bloqué.")
             return rerender()
 
-        # Récupération des champs
         garde_val  = request.form.get("tour_de_garde", "")
         village    = (request.form.get("village") or "").strip()
         mv         = (request.form.get("mem_visions") or "").strip()
@@ -665,9 +673,7 @@ def rapport():
         villagers  = (request.form.get("villagers") or "").strip()
         moves      = (request.form.get("moves") or "").strip()
 
-        # Accumuler les erreurs
         errors = []
-
         if garde_val not in ("oui", "non"):
             errors.append("Indiquez si la garde a été effectuée (oui / non).")
         if not village:
@@ -684,17 +690,14 @@ def rapport():
                 flash(e)
             return rerender()
 
-        # Normalisation “visions”
         tour = (garde_val == "oui")
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
 
-        # Création du BBCode
         bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, foreigners, acp, ag, villagers, moves)
 
-        # Sauvegarde
         r = Report(
             report_date=jour_de_jeu,
             user_id=current_user.id,
@@ -713,7 +716,6 @@ def rapport():
         db.session.add(r)
         db.session.commit()
 
-        # Affichage du résultat
         date_str = jour_de_jeu.strftime("%d %B %Y") if jour_de_jeu else "Date inconnue"
         return render_template(
             "report_result.html",
@@ -742,5 +744,5 @@ def voir_rapport(rapport_id):
     return render_template("rapport_lecture.html", rapport=rapport)
 
 # ---------------------------------------------------------------------
-if __name__=="__main__":
-    app.run(host="0.0.0.0",port=5000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
