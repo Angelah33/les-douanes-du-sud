@@ -548,20 +548,25 @@ def api_brigands():
 @app.route("/api/brigands", methods=["POST"])
 def create_brigand():
     data = request.get_json()
-    if not data or "name" not in data or "list" not in data:
-        return jsonify({"error": "Champs obligatoires manquants"}), 400
+    if not data or "name" not in data:
+        return jsonify({"error": "Le nom est obligatoire"}), 400
 
     brigand = Brigand(
         name=data["name"].strip(),
-        list=data["list"],
+        list=data.get("list", "").strip(),
         facts=data.get("facts", "").strip(),
         is_crown=bool(data.get("is_crown")),
         is_png=bool(data.get("is_png")),
         order=data.get("order", "").strip()
     )
-    db.session.add(brigand)
-    db.session.commit()
-    return jsonify({"success": True, "id": brigand.id})
+
+    try:
+        db.session.add(brigand)
+        db.session.commit()
+        return jsonify({"success": True, "id": brigand.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # ---------- Interfaces prévôtales ----------
 
