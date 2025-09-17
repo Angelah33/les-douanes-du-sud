@@ -49,6 +49,39 @@ const pagers = {
   orderMembers: {}, // {orderId: currentPage}
 };
 
+document.getElementById("createForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const brigand = {
+    name: document.getElementById("name").value.trim(),
+    list: document.getElementById("primaryList").value,
+    facts: document.getElementById("facts").value.trim(),
+    is_crown: document.getElementById("isCrown").checked,
+    is_png: document.getElementById("isPNG").checked,
+    order: document.getElementById("orderSelect").value
+  };
+
+  try {
+    const res = await fetch("/api/brigands", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(brigand)
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      alert("Brigand ajouté !");
+      e.target.reset();
+      // Tu peux aussi recharger les listes ici si tu veux
+    } else {
+      alert("Erreur : " + result.error);
+    }
+  } catch (err) {
+    console.error("Erreur réseau :", err);
+    alert("Erreur réseau");
+  }
+});
+
 // =========== Utils ===========
 function cuid() {
   return "id-" + Math.random().toString(36).slice(2, 10);
