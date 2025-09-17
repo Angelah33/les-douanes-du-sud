@@ -24,11 +24,15 @@
       .village-option.disabled {
         color: #ccc;
         cursor: not-allowed;
-}
+      }
     </style>
   </head>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <body>
+
+  <!-- ✅ Ajout de la classe dynamique ici -->
+  <body class="{{ page_class|default('') }}">
+
     <header>
       {% if BUREAU_LOGO_URL %}
         <img src="{{ BUREAU_LOGO_URL }}" alt="Logo">
@@ -39,8 +43,7 @@
         | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
         | <a href="{{ url_for('rapport') }}">Rapport</a>
 
-        {# Liens “Guide” selon le rôle #}
-       {% set role = current_user.role if current_user.is_authenticated else '' %}
+        {% set role = current_user.role if current_user.is_authenticated else '' %}
         {% if role == 'marechal' %}
           | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
         {% elif role == 'prevot' %}
@@ -66,13 +69,12 @@
       {% endwith %}
 
       {% block content %}{% endblock %}
+    </main>
 
-</main>
-
-<footer>
-  <hr>
-  <div>Pour toute information ou problème, contactez IG : Agatha.isabella</div>
-</footer>
+    <footer>
+      <hr>
+      <div>Pour toute information ou problème, contactez IG : Agatha.isabella</div>
+    </footer>
 
     <!-- Modale Guides -->
     <div id="guide-backdrop" class="modal-backdrop">
