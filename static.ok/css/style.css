@@ -88,7 +88,7 @@ body.brigands .topbar {
 }
 
 label {
-  color: var(--muted);
+  color: var(--text);
   font-size: .9rem;
 }
 
