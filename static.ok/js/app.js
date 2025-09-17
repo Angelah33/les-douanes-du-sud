@@ -143,9 +143,34 @@ const editOrder = document.getElementById("editOrder");
 const deleteEntryBtn = document.getElementById("deleteEntry");
 const cancelEditBtn = document.getElementById("cancelEdit");
 
+// =========== Chargement des organisations brigandes ===========
+async function chargerOrganisations() {
+  try {
+    const res = await fetch('/api/organisations');
+    if (!res.ok) throw new Error("Erreur " + res.status);
+    const data = await res.json();
+
+    const selectCreate = document.getElementById('orderSelect');
+    const selectEdit = document.getElementById('editOrder');
+
+    [selectCreate, selectEdit].forEach(select => {
+      if (!select) return;
+      select.innerHTML = '<option value="">Aucun</option>';
+      data.forEach(orga => {
+        const opt = document.createElement('option');
+        opt.value = orga.id;
+        opt.textContent = orga.nom;
+        select.appendChild(opt);
+      });
+    });
+  } catch (err) {
+    console.error("Impossible de charger les organisations :", err);
+  }
+}
+
 // =========== Initialisation ===========
 function init() {
-  renderOrderSelects();
+  chargerOrganisations();
   bindEvents();
   renderAll();
 }
