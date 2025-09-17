@@ -1,5 +1,5 @@
 import click
-from app import db, User, Village, app
+from main import db, User, Village, app
 
 @click.group()
 def cli(): pass
@@ -12,7 +12,7 @@ def initdb():
 @click.argument("username")
 @click.argument("password")
 def create_superadmin(username,password):
-    from app import User,db
+    from main import User, db
     with app.app_context():
         u=User.query.filter_by(username=username).first()
         if u: print("Existe déjà."); return
@@ -24,7 +24,7 @@ def create_superadmin(username,password):
 @click.argument("villages")
 def add_villages(villages):
     names=[v.strip() for v in villages.split(";") if v.strip()]
-    from app import Village,db
+    from main import Village, db
     with app.app_context():
         for n in names:
             if not Village.query.filter_by(name=n).first():
