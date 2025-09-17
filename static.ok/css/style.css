@@ -77,6 +77,10 @@ body.brigands .topbar {
   gap: 6px;
 }
 
+.field label {
+  color: var(--text);
+}
+
 .span-2 {
   grid-column: span 2;
 }
@@ -147,6 +151,16 @@ textarea {
 
 .btn.danger:hover {
   background: #f8c8c6;
+}
+
+.btn.brigand {
+  background: #C6AF7B;
+  border-color: #bfa77a;
+  color: #7A451E;
+}
+
+.btn.brigand:hover {
+  background: #d4c29e;
 }
 
 .badge {
