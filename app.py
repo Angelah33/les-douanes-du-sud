@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
+from flask import jsonify
 def get_jour_de_jeu():
     now = datetime.now()
     heure = now.hour
@@ -528,10 +529,6 @@ def prevot_dashboard():
     {% endblock %}
     """)
 
-from flask import jsonify
-from app import db
-from models import Brigand  # adapte selon ton structure si besoin
-
 @app.route("/api/brigands")
 def api_brigands():
     brigands = Brigand.query.order_by(Brigand.name.asc()).all()
@@ -547,10 +544,6 @@ def api_brigands():
             "order": b.order
         })
     return jsonify(result)
-
-from flask import request, jsonify
-from app import db
-from models import Brigand  # adapte si tes modèles sont dans app.py directement
 
 @app.route("/api/brigands", methods=["POST"])
 def create_brigand():
@@ -627,9 +620,6 @@ def gestion_marechaux():
     )
 
     return render_template("marechaux.html", users=users)
-
-from datetime import datetime, timedelta
-from flask import render_template
 
 def jour_actif():
     now = datetime.now()
