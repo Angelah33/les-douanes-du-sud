@@ -136,11 +136,9 @@ function getOrderById(id) {
 }
 
 function escapeText(s) {
-  return (s || "").replace(/
-
-\[/g, "(").replace(/\]
-
-/g, ")");
+  return (s || "")
+    .replace(/\[b.*?\]/g, "")   // ligne 1 : regex complète sur une ligne
+    .replace(/\]/g, "");        // ligne 2 : autre regex complète
 }
 
 // Règles d’assemblage (export BBCode pour rapports)
