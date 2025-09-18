@@ -180,23 +180,135 @@ with app.app_context():
 # ---------------------------------------------------------------------
 # Génération BBCode du rapport maréchal
 # ---------------------------------------------------------------------
+def generer_memoire_visions(nom_ig, typologie='', est_ac=False):
+    titres_pack = ['de', 'du', 'd’', 'le', 'la', 'des', 'l’', 'de la', 'de l’']
+    nom_split = nom_ig.strip().split()
+    nom_reel = nom_split[0] if len(nom_split) > 1 and nom_split[1].lower() in titres_pack else nom_ig
+
+    couleur = {
+        'couronne': 'darkorange',
+        'liste noire': 'red',
+        'surveillance': 'darkred'
+    }.get(typologie.lower(), '')
+
+    if est_ac:
+        nom_formaté = f"[b]{nom_reel}[/b]"
+        if len(nom_split) > 1:
+            nom_formaté += ' ' + ' '.join(nom_split[1:])
+    else:
+        nom_formaté = nom_ig
+
+    return f"[color={couleur}]{nom_formaté}[/color]" if couleur else nom_formaté
+
+
+def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='', statut='', est_ac=False):
+    couleur = {
+        'couronne': 'darkorange',
+        'liste noire': 'red',
+        'surveillance': 'darkred',
+        'png': 'indigo'
+    }.get(typologie.lower(), '')
+
+    mention = ''
+    if typologie.lower() == 'couronne':
+        mention = ' — Recherché par la Couronne de France'
+    elif typologie.lower() == 'png':
+        mention = ' — PNG Interdit de territoire'
+
+    titres_pack = ['de', 'du', 'd’', 'le', 'la', 'des', 'l’', 'de la', 'de l’']
+    nom_split = nom_ig.strip().split()
+    nom_reel = nom_split[0] if len(nom_split) > 1 and nom_split[1].lower() in titres_pack else nom_ig
+    nom_formaté = f"[b]{nom_reel}[/b]" if est_ac else nom_ig
+    if est_ac and len(nom_split) > 1:
+        nom_formaté += ' ' + ' '.join(nom_split[1:])
+
+    bloc_coloré = f"[color={couleur}]{nom_formaté}{mention}[/color]" if couleur else nom_formaté
+
+    ligne = bloc_coloré
+    if organisation:
+        ligne += f" — {organisation}"
+    if faits:
+        ligne += f" — {faits}"
+    if statut:
+        ligne += f" ({statut})"
+
+    return ligne
+
+
 def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, ac_presence, armies_groups, villagers, moves):
     date_str = d.strftime("%d %B %Y")
-    lines=[]
-    def title(label,count=None):
-        suffix=f" [color=blue][b]{count}[/b][/color]" if count is not None else ""
+    lines = []
+
+    def title(label, count=None):
+        suffix = f" [color=blue][b]{count}[/b][/color]" if count is not None else ""
         lines.append(f"[color={REPORT_TITLE_COLOR}][size=14][b][u]{label}[/u] :[/b][/size][/color]{suffix}\n")
+
     lines.append(f"[quote][center][b][size=18]{village_name}[/size]\nRapport de la maréchaussée du {date_str}.[/b][/center]\n")
-    mv=mem_visions.strip() or "[b]RAS.[/b]"
-    title("MÉMOIRE ET VISIONS"); lines.append(mv+"\n\n")
-    title("PERSONNES EN SURVEILLANCE",count_lines(surveillance)); lines.append(surveillance+"\n\n")
-    title("FLUX MIGRATOIRES",count_lines(flux)); lines.append(flux+"\n\n")
-    title("PRÉSENCES ÉTRANGÈRES",count_lines(foreigners)); lines.append(foreigners+"\n\n")
-    title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES",count_lines(ac_presence)); lines.append(ac_presence+"\n\n")
-    title("ARMÉES ET GROUPES",count_lines(armies_groups)); lines.append(armies_groups+"\n\n")
-    title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS"); lines.append("[spoiler][quote]Déménagements[/quote]\n"+moves+"\n"+villagers+"\n[/spoiler]\n\n")
-    legend="[quote][size=9][b]LÉGENDE[/b] :\n[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
-    lines.append(legend+"\n[/quote]")
+
+    # Bloc Mémoire et Visions
+    if mem_visions.strip():
+        lignes_mv = mem_visions.strip().split('\n')
+        bloc_mv = []
+        for ligne in lignes_mv:
+            parts = [p.strip() for p in ligne.split('|')]
+            if not parts or not parts[0]:
+                continue
+            nom_ig = parts[0]
+            typologie = parts[1] if len(parts) > 1 else ''
+            est_ac = 'a&c' in parts[2].lower() if len(parts) > 2 else False
+            bbcode = generer_memoire_visions(nom_ig, typologie, est_ac)
+            bloc_mv.append(bbcode)
+        mv = '\n'.join(bloc_mv) if bloc_mv else "[b]RAS.[/b]"
+    else:
+        mv = "[b]RAS.[/b]"
+
+    title("MÉMOIRE ET VISIONS")
+    lines.append(mv + "\n\n")
+
+    # Bloc Personnes en Surveillance
+    if surveillance.strip():
+        lignes_surv = surveillance.strip().split('\n')
+        bloc_surv = []
+        for ligne in lignes_surv:
+            parts = [p.strip() for p in ligne.split('|')]
+            if not parts or not parts[0]:
+                continue
+            nom_ig = parts[0]
+            typologie = parts[1] if len(parts) > 1 else ''
+            organisation = parts[2] if len(parts) > 2 else ''
+            faits = parts[3] if len(parts) > 3 else ''
+            statut = parts[4] if len(parts) > 4 else ''
+            est_ac = 'a&c' in parts[5].lower() if len(parts) > 5 else False
+            bbcode = generer_surveillance_bbcode(nom_ig, typologie, organisation, faits, statut, est_ac)
+            bloc_surv.append(bbcode)
+        surveillance_bbcode = '\n'.join(bloc_surv) if bloc_surv else "[b]RAS.[/b]"
+    else:
+        surveillance_bbcode = "[b]RAS.[/b]"
+
+    title("PERSONNES EN SURVEILLANCE", count_lines(surveillance_bbcode))
+    lines.append(surveillance_bbcode + "\n\n")
+
+    # Blocs restants (traités en brut)
+    title("FLUX MIGRATOIRES", count_lines(flux))
+    lines.append(flux.strip() or "[b]RAS.[/b]" + "\n\n")
+    title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
+    lines.append(foreigners.strip() or "[b]RAS.[/b]" + "\n\n")
+    title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
+    lines.append(ac_presence.strip() or "[b]RAS.[/b]" + "\n\n")
+    title("ARMÉES ET GROUPES", count_lines(armies_groups))
+    lines.append(armies_groups.strip() or "[b]RAS.[/b]" + "\n\n")
+    title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
+    lines.append("[spoiler][quote]Déménagements[/quote]\n" + (moves.strip() or "[b]RAS.[/b]") + "\n" + (villagers.strip() or "[b]RAS.[/b]") + "\n[/spoiler]\n\n")
+
+    legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
+             "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
+             "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
+             "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
+             "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
+             "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+
+    lines.append(legend + "\n[/quote]")
+
     return "\n".join(lines)
 
 # ---------------------------------------------------------------------
