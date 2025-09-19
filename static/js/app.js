@@ -77,6 +77,30 @@ function normalizeOrderValue(raw) {
   return raw;
 }
 
+// Utilitaire: charger les organisations dans le menu déroulant
+async function loadOrganisations() {
+  try {
+    const res = await fetch("/api/organisations");
+    const organisations = await res.json();
+
+    const select = DOM.orderSelect;
+    if (!select) return;
+
+    // Réinitialiser le menu
+    select.innerHTML = '<option value="">Aucun</option>';
+
+    // Injecter les organisations
+    organisations.forEach(org => {
+      const option = document.createElement("option");
+      option.value = org.id;
+      option.textContent = `${org.nom_complet} (${org.nom_abrege})`;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Erreur lors du chargement des organisations :", err);
+  }
+}
+
   // ✅ Création d’un brigand
   DOM.createForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -868,6 +892,7 @@ async function loadBrigandTables() {
 document.addEventListener("DOMContentLoaded", () => {
   init();               // ← initialise ton app
   initDOM();            // ← récupère les éléments HTML
+  loadOrganisations();  // ← injecte les organisations dans le menu déroulant
   loadBrigandTables();  // ← charge les tableaux
   // ... toute la logique de création, modif, suppression
 });
