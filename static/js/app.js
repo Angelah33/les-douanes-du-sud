@@ -50,145 +50,149 @@ const pagers = {
   orderMembers: {}, // {orderId: currentPage}
 };
 
-// ✅ Création d’un brigand
-document.addEventListener("DOMContentLoaded", () => {
-  if (createForm) {
-    createForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+// Références DOM
+const DOM = {};
+function initDOM() {
+  DOM.createForm = document.getElementById("createForm");
+  DOM.nameInput = document.getElementById("name");
+  DOM.primarySelect = document.getElementById("primaryList");
+  DOM.factsInput = document.getElementById("facts");
+  DOM.isCrown = document.getElementById("isCrown");
+  DOM.isPNG = document.getElementById("isPNG");
+  DOM.orderSelect = document.getElementById("orderSelect");
+  DOM.updateBtn = document.getElementById("updateButton");
+  DOM.deleteBtn = document.getElementById("deleteButton");
+  DOM.deleteForm = document.getElementById("deleteForm");
+  DOM.deleteNames = document.getElementById("deleteNames");
+}
 
-      const brigand = {
-        name: document.getElementById("name").value.trim(),
-        list: document.getElementById("primaryList").value,
-        facts: document.getElementById("facts").value.trim(),
-        is_crown: document.getElementById("isCrown").checked,
-        is_png: document.getElementById("isPNG").checked,
-        order: document.getElementById("orderSelect").value
-      };
+  // ✅ Création d’un brigand
+  DOM.createForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-      try {
-        const res = await fetch("/api/brigands", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(brigand)
-        });
+    const brigand = {
+      name: DOM.nameInput?.value.trim(),
+      list: DOM.primarySelect?.value,
+      facts: DOM.factsInput?.value.trim(),
+      is_crown: DOM.isCrown?.checked,
+      is_png: DOM.isPNG?.checked,
+      order: DOM.orderSelect?.value
+    };
 
+    try {
+      const res = await fetch("/api/brigands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(brigand)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("Brigand ajouté !");
+        e.target.reset();
+        reloadBrigands();
+      } else {
+        alert("Erreur : " + result.error);
+      }
+    } catch (err) {
+      console.error("Erreur réseau :", err);
+      alert("Erreur réseau");
+    }
+  });
+
+  // 🔧 Modifier le brigand sélectionné
+  DOM.updateBtn?.addEventListener("click", async () => {
+    if (!selectedBrigand?.id) {
+      alert("Aucun brigand sélectionné.");
+      return;
+    }
+
+    const updatedBrigand = {
+      name: DOM.nameInput?.value.trim(),
+      list: DOM.primarySelect?.value,
+      facts: DOM.factsInput?.value.trim(),
+      is_crown: DOM.isCrown?.checked,
+      is_png: DOM.isPNG?.checked,
+      order: DOM.orderSelect?.value
+    };
+
+    try {
+      const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedBrigand)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("Brigand modifié !");
+        selectedBrigand = null;
+        DOM.createForm?.reset();
+        reloadBrigands();
+      } else {
+        alert("Erreur : " + result.error);
+      }
+    } catch (err) {
+      console.error("Erreur réseau :", err);
+      alert("Erreur réseau");
+    }
+  });
+
+  // 🗑️ Supprimer le brigand sélectionné
+  DOM.deleteBtn?.addEventListener("click", async () => {
+    if (!selectedBrigand?.id) {
+      alert("Aucun brigand sélectionné.");
+      return;
+    }
+
+    if (!confirm("Confirmer la suppression du brigand ?")) return;
+
+    try {
+      const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+        method: "DELETE"
+      });
+
+      if (res.ok) {
+        alert("Brigand supprimé !");
+        selectedBrigand = null;
+        DOM.createForm?.reset();
+        reloadBrigands();
+      } else {
         const result = await res.json();
-        if (res.ok) {
-          alert("Brigand ajouté !");
-          e.target.reset();
-          reloadBrigands();
-        } else {
-          alert("Erreur : " + result.error);
-        }
-      } catch (err) {
-        console.error("Erreur réseau :", err);
-        alert("Erreur réseau");
+        alert("Erreur : " + result.error);
       }
-    });
-  }
-});
+    } catch (err) {
+      console.error("Erreur réseau :", err);
+      alert("Erreur réseau");
+    }
+  });
 
-// 🔧 Modifier le brigand sélectionné
-document.addEventListener("DOMContentLoaded", () => {
-  const updateBtn = document.getElementById("updateButton");
-  if (updateBtn) {
-    updateBtn.addEventListener("click", async () => {
-      if (!selectedBrigand || !selectedBrigand.id) {
-        alert("Aucun brigand sélectionné.");
-        return;
-      }
+  // 🧹 Suppression par nom
+  DOM.deleteForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-      const updatedBrigand = {
-        name: document.getElementById("name").value.trim(),
-        list: document.getElementById("primaryList").value,
-        facts: document.getElementById("facts").value.trim(),
-        is_crown: document.getElementById("isCrown").checked,
-        is_png: document.getElementById("isPNG").checked,
-        order: document.getElementById("orderSelect").value
-      };
+    const raw = DOM.deleteNames?.value.trim();
+    if (!raw) return alert("Aucun nom à supprimer");
 
-      try {
-        const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedBrigand)
-        });
+    const names = raw.split("\n").map(n => n.trim()).filter(n => n);
+    if (!names.length) return alert("Format invalide");
 
-        const result = await res.json();
-        if (res.ok) {
-          alert("Brigand modifié !");
-          selectedBrigand = null;
-          document.getElementById("createForm").reset();
-          reloadBrigands();
-        } else {
-          alert("Erreur : " + result.error);
-        }
-      } catch (err) {
-        console.error("Erreur réseau :", err);
-        alert("Erreur réseau");
-      }
-    });
-  }
-});
+    try {
+      const res = await fetch("/api/brigands/delete-by-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names })
+      });
 
-// 🗑️ Supprimer le brigand sélectionné
-document.addEventListener("DOMContentLoaded", () => {
-  const deleteBtn = document.getElementById("deleteButton");
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", async () => {
-      if (!selectedBrigand || !selectedBrigand.id) {
-        alert("Aucun brigand sélectionné.");
-        return;
-      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Erreur lors de la suppression");
 
-      if (!confirm("Confirmer la suppression du brigand ?")) return;
-
-      try {
-        const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-          method: "DELETE"
-        });
-
-        if (res.ok) {
-          alert("Brigand supprimé !");
-          selectedBrigand = null;
-          document.getElementById("createForm").reset();
-          reloadBrigands();
-        } else {
-          const result = await res.json();
-          alert("Erreur : " + result.error);
-        }
-      } catch (err) {
-        console.error("Erreur réseau :", err);
-        alert("Erreur réseau");
-      }
-    });
-  }
-});
-
-document.getElementById("deleteForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const raw = document.getElementById("deleteNames").value.trim();
-  if (!raw) return alert("Aucun nom à supprimer");
-
-  const names = raw.split("\n").map(n => n.trim()).filter(n => n);
-  if (!names.length) return alert("Format invalide");
-
-  try {
-    const res = await fetch("/api/brigands/delete-by-name", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ names })
-    });
-
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "Erreur lors de la suppression");
-
-    alert(`Brigands supprimés : ${result.deleted.join(", ")}`);
-    document.getElementById("deleteNames").value = "";
-  } catch (err) {
-    alert(err.message);
-  }
+      alert(`Brigands supprimés : ${result.deleted.join(", ")}`);
+      DOM.deleteNames.value = "";
+    } catch (err) {
+      alert(err.message);
+    }
+  });
 });
 
 // 🔄 Rechargement des brigands
@@ -373,7 +377,6 @@ function init() {
   bindEvents();
   renderAll();
 }
-document.addEventListener("DOMContentLoaded", init);
 
 function renderOrderSelects() {
   const opts = orders
@@ -851,4 +854,9 @@ async function loadBrigandTables() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadBrigandTables);
+document.addEventListener("DOMContentLoaded", () => {
+  init();               // ← initialise ton app
+  initDOM();            // ← récupère les éléments HTML
+  loadBrigandTables();  // ← charge les tableaux
+  // ... toute la logique de création, modif, suppression
+});
