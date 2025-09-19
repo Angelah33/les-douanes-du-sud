@@ -180,6 +180,42 @@ with app.app_context():
 # ---------------------------------------------------------------------
 # Génération BBCode du rapport maréchal
 # ---------------------------------------------------------------------
+def detecter_noms(visions, villageois, groupes_armées):
+    import re
+
+    def extraire_depuis_texte(texte):
+        # Supprime les balises BBCode éventuelles
+        texte = re.sub(r'\[.*?\]', '', texte)
+        # Sépare par ponctuation, retour ligne, tirets, etc.
+        tokens = re.split(r'[,\n;:\-\(\)\[\]]+', texte)
+        noms = []
+        for token in tokens:
+            mot = token.strip()
+            # On garde les mots avec au moins une majuscule et une longueur raisonnable
+            if len(mot) >= 3 and any(c.isupper() for c in mot):
+                noms.append(mot)
+        return noms
+
+    noms_visions = extraire_depuis_texte(visions)
+    noms_villageois = extraire_depuis_texte(villageois)
+    noms_groupes = extraire_depuis_texte(groupes_armées)
+
+    tous_noms = noms_visions + noms_villageois + noms_groupes
+    noms_uniques = list(set(tous_noms))
+
+    return noms_uniques
+
+def enrichir_nom(nom_ig):
+    """
+    Fonction à compléter une fois que les données prévôt sont accessibles.
+    Elle devra :
+    - Chercher le nom dans la liste brigands (typologie, organisation, A&C)
+    - Chercher le nom dans les fiches villageoises (statut spécial)
+    - Retourner le BBCode enrichi via generer_surveillance_bbcode()
+    """
+    # TODO : intégrer la logique une fois la page Gestion des brigands réparée
+    return nom_ig  # temporaire : retourne le nom brut
+
 def generer_memoire_visions(nom_ig, typologie='', est_ac=False):
     titres_pack = ['de', 'du', 'd’', 'le', 'la', 'des', 'l’', 'de la', 'de l’']
     nom_split = nom_ig.strip().split()
@@ -199,7 +235,6 @@ def generer_memoire_visions(nom_ig, typologie='', est_ac=False):
         nom_formaté = nom_ig
 
     return f"[color={couleur}]{nom_formaté}[/color]" if couleur else nom_formaté
-
 
 def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='', statut='', est_ac=False):
     couleur = {
@@ -233,7 +268,6 @@ def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='',
         ligne += f" ({statut})"
 
     return ligne
-
 
 def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, ac_presence, armies_groups, villagers, moves):
     date_str = d.strftime("%d %B %Y")
@@ -288,28 +322,42 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
     title("PERSONNES EN SURVEILLANCE", count_lines(surveillance_bbcode))
     lines.append(surveillance_bbcode + "\n\n")
 
-    # Blocs restants (traités en brut)
-    title("FLUX MIGRATOIRES", count_lines(flux))
-    lines.append(flux.strip() or "[b]RAS.[/b]" + "\n\n")
-    title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
-    lines.append(foreigners.strip() or "[b]RAS.[/b]" + "\n\n")
-    title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
-    lines.append(ac_presence.strip() or "[b]RAS.[/b]" + "\n\n")
-    title("ARMÉES ET GROUPES", count_lines(armies_groups))
-    lines.append(armies_groups.strip() or "[b]RAS.[/b]" + "\n\n")
-    title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
-    lines.append("[spoiler][quote]Déménagements[/quote]\n" + (moves.strip() or "[b]RAS.[/b]") + "\n" + (villagers.strip() or "[b]RAS.[/b]") + "\n[/spoiler]\n\n")
+# Blocs restants (avec enrichissement par nom)
+def enrichir_bloc(brut):
+    lignes = brut.strip().split('\n')
+    bloc = []
+    for ligne in lignes:
+        if ligne.strip():
+            bloc.append(enrichir_nom(ligne.strip()))
+    return '\n'.join(bloc) if bloc else "[b]RAS.[/b]"
 
-    legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
-             "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
-             "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
-             "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
-             "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
-             "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+title("FLUX MIGRATOIRES", count_lines(flux))
+lines.append(enrichir_bloc(flux) + "\n\n")
 
-    lines.append(legend + "\n[/quote]")
+title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
+lines.append(enrichir_bloc(foreigners) + "\n\n")
 
-    return "\n".join(lines)
+title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
+lines.append(enrichir_bloc(ac_presence) + "\n\n")
+
+title("ARMÉES ET GROUPES", count_lines(armies_groups))
+lines.append(enrichir_bloc(armies_groups) + "\n\n")
+
+title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
+bloc_moves = enrichir_bloc(moves)
+bloc_villagers = enrichir_bloc(villagers)
+lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
+
+legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
+         "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
+         "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
+         "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
+         "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
+         "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+
+lines.append(legend + "\n[/quote]")
+
+return "\n".join(lines)
 
 # ---------------------------------------------------------------------
 # Contexte global pour les templates
