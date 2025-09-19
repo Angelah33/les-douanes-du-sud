@@ -86,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+});
 
 // 🔧 Modifier le brigand sélectionné
 document.addEventListener("DOMContentLoaded", () => {
