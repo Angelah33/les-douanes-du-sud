@@ -193,7 +193,6 @@ function initDOM() {
       alert(err.message);
     }
   });
-});
 
 // 🔄 Rechargement des brigands
 async function reloadBrigands() {
