@@ -64,6 +64,7 @@ function initDOM() {
   DOM.deleteBtn = document.getElementById("deleteButton");
   DOM.deleteForm = document.getElementById("deleteForm");
   DOM.deleteNames = document.getElementById("deleteNames");
+  DOM.editOrder = document.getElementById("editOrder");
 }
 
   // ✅ Création d’un brigand
@@ -375,14 +376,15 @@ function init() {
   chargerOrganisations();
   bindEvents();
   renderAll();
+  renderOrderSelects();
 }
 
 function renderOrderSelects() {
   const opts = orders
-    .map(o => `<option value="${o.id}">${o.name} ${o.id==="none"?"":"(" + o.short + ")"}</option>`)
+    .map(o => `<option value="${o.id}">${o.name} ${o.id === "none" ? "" : "(" + o.short + ")"}</option>`)
     .join("");
-  orderSelect.innerHTML = opts;
-  editOrder.innerHTML = opts;
+  DOM.orderSelect.innerHTML = opts;
+  DOM.editOrder.innerHTML = opts;
 }
 
 // =========== Événements ===========
