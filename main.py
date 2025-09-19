@@ -322,42 +322,42 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
     title("PERSONNES EN SURVEILLANCE", count_lines(surveillance_bbcode))
     lines.append(surveillance_bbcode + "\n\n")
 
-# Blocs restants (avec enrichissement par nom)
-def enrichir_bloc(brut):
-    lignes = brut.strip().split('\n')
-    bloc = []
-    for ligne in lignes:
-        if ligne.strip():
-            bloc.append(enrichir_nom(ligne.strip()))
-    return '\n'.join(bloc) if bloc else "[b]RAS.[/b]"
+    # Blocs restants (avec enrichissement par nom)
+    def enrichir_bloc(brut):
+        lignes = brut.strip().split('\n')
+        bloc = []
+        for ligne in lignes:
+            if ligne.strip():
+                bloc.append(enrichir_nom(ligne.strip()))
+        return '\n'.join(bloc) if bloc else "[b]RAS.[/b]"
 
-title("FLUX MIGRATOIRES", count_lines(flux))
-lines.append(enrichir_bloc(flux) + "\n\n")
+    title("FLUX MIGRATOIRES", count_lines(flux))
+    lines.append(enrichir_bloc(flux) + "\n\n")
 
-title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
-lines.append(enrichir_bloc(foreigners) + "\n\n")
+    title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
+    lines.append(enrichir_bloc(foreigners) + "\n\n")
 
-title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
-lines.append(enrichir_bloc(ac_presence) + "\n\n")
+    title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
+    lines.append(enrichir_bloc(ac_presence) + "\n\n")
 
-title("ARMÉES ET GROUPES", count_lines(armies_groups))
-lines.append(enrichir_bloc(armies_groups) + "\n\n")
+    title("ARMÉES ET GROUPES", count_lines(armies_groups))
+    lines.append(enrichir_bloc(armies_groups) + "\n\n")
 
-title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
-bloc_moves = enrichir_bloc(moves)
-bloc_villagers = enrichir_bloc(villagers)
-lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
+    title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
+    bloc_moves = enrichir_bloc(moves)
+    bloc_villagers = enrichir_bloc(villagers)
+    lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
 
-legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
-         "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
-         "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
-         "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
-         "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
-         "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+    legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
+             "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
+             "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
+             "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
+             "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
+             "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
 
-lines.append(legend + "\n[/quote]")
+    lines.append(legend + "\n[/quote]")
 
-return "\n".join(lines)
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------
 # Contexte global pour les templates
