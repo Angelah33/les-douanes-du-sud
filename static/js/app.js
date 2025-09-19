@@ -386,15 +386,21 @@ function renderOrderSelects() {
 // =========== Événements ===========
 function bindEvents() {
   // Tabs
-  tabButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelector(".tab.active")?.classList.remove("active");
-      btn.classList.add("active");
-      const target = btn.dataset.tab;
-      document.querySelector(".tabpane.active")?.classList.remove("active");
-      panes[target].classList.add("active");
-    });
+tabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelector(".tab.active")?.classList.remove("active");
+    btn.classList.add("active");
+
+    const target = btn.dataset.tab;
+
+    // Masquer tous les panneaux
+    Object.values(panes).forEach(pane => pane.classList.add("hidden"));
+
+    // Afficher le panneau ciblé
+    const activePane = panes[target];
+    if (activePane) activePane.classList.remove("hidden");
   });
+});
 
   // Création
   createForm.addEventListener("submit", (e) => {
