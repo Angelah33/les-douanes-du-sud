@@ -165,6 +165,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+document.getElementById("deleteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const raw = document.getElementById("deleteNames").value.trim();
+  if (!raw) return alert("Aucun nom à supprimer");
+
+  const names = raw.split("\n").map(n => n.trim()).filter(n => n);
+  if (!names.length) return alert("Format invalide");
+
+  try {
+    const res = await fetch("/api/brigands/delete-by-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ names })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Erreur lors de la suppression");
+
+    alert(`Brigands supprimés : ${result.deleted.join(", ")}`);
+    document.getElementById("deleteNames").value = "";
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
 // 🔄 Rechargement des brigands
 async function reloadBrigands() {
   try {
