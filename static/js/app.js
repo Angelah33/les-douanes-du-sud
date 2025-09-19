@@ -542,6 +542,10 @@ function renderNamesOnlyTable(key, arr, mount) {
   const start = (page - 1) * PAGE_SIZE;
   const rows = arr.slice(start, start + PAGE_SIZE);
 
+  // 🔍 Ajout du log pour débogage
+  console.log(`[${key}] ${arr.length} brigands trouvés`);
+  console.log(`[${key}]`, arr.map(b => b.name));
+
   mount.innerHTML = `
     <table class="table">
       <thead>
@@ -564,6 +568,7 @@ function renderNamesOnlyTable(key, arr, mount) {
     </table>
     ${pagerHTML(key, page, totalPages)}
   `;
+
   bindPager(key, mount);
   bindRowActions(mount);
 }
