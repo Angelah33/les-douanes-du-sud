@@ -82,7 +82,7 @@ async function loadOrganisations() {
   try {
     const res = await fetch("/api/organisations");
     const organisations = await res.json();
-
+    console.log("Organisations reçues :", organisations);
     const select = DOM.orderSelect;
     if (!select) return;
 
