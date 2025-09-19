@@ -36,6 +36,7 @@ let orders = [
 
 // Entrées brigands
 let brigands = []; // {id, name, facts, primary, isCrown, isPNG, orderId}
+let selectedBrigand = null; // ← brigand actuellement sélectionné pour modification
 
 // États de pagination par tableau
 const pagers = {
@@ -49,6 +50,7 @@ const pagers = {
   orderMembers: {}, // {orderId: currentPage}
 };
 
+// ✅ Création d’un brigand
 document.getElementById("createForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -82,17 +84,86 @@ document.getElementById("createForm").addEventListener("submit", async (e) => {
   }
 });
 
+// 🔧 Modifier le brigand sélectionné
+document.getElementById("updateButton").addEventListener("click", async () => {
+  if (!selectedBrigand || !selectedBrigand.id) {
+    alert("Aucun brigand sélectionné.");
+    return;
+  }
+
+  const updatedBrigand = {
+    name: document.getElementById("name").value.trim(),
+    list: document.getElementById("primaryList").value,
+    facts: document.getElementById("facts").value.trim(),
+    is_crown: document.getElementById("isCrown").checked,
+    is_png: document.getElementById("isPNG").checked,
+    order: document.getElementById("orderSelect").value
+  };
+
+  try {
+    const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedBrigand)
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      alert("Brigand modifié !");
+      selectedBrigand = null;
+      document.getElementById("createForm").reset();
+      reloadBrigands();
+    } else {
+      alert("Erreur : " + result.error);
+    }
+  } catch (err) {
+    console.error("Erreur réseau :", err);
+    alert("Erreur réseau");
+  }
+});
+
+// 🗑️ Supprimer le brigand sélectionné
+document.getElementById("deleteButton").addEventListener("click", async () => {
+  if (!selectedBrigand || !selectedBrigand.id) {
+    alert("Aucun brigand sélectionné.");
+    return;
+  }
+
+  if (!confirm("Confirmer la suppression du brigand ?")) return;
+
+  try {
+    const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      alert("Brigand supprimé !");
+      selectedBrigand = null;
+      document.getElementById("createForm").reset();
+      reloadBrigands();
+    } else {
+      const result = await res.json();
+      alert("Erreur : " + result.error);
+    }
+  } catch (err) {
+    console.error("Erreur réseau :", err);
+    alert("Erreur réseau");
+  }
+});
+
+// 🔄 Rechargement des brigands
 async function reloadBrigands() {
   try {
     const res = await fetch("/api/brigands");
     const data = await res.json();
     brigands = data;
-    renderAllTables(); // ← on ajoute cette fonction juste après
+    renderAllTables();
   } catch (err) {
     console.error("Erreur lors du rechargement des brigands :", err);
   }
 }
 
+// 🧩 Affichage des brigands dans les tableaux
 function renderAllTables() {
   const tables = {
     noire: document.getElementById("table-noire"),
@@ -115,6 +186,18 @@ function renderAllTables() {
     div.className = "brigand-entry";
     div.textContent = b.name + (b.facts ? " — " + b.facts : "");
 
+    // 🔄 Rendre le brigand cliquable pour modification
+    div.addEventListener("click", () => {
+      selectedBrigand = b;
+      document.getElementById("name").value = b.name;
+      document.getElementById("primaryList").value = b.list;
+      document.getElementById("facts").value = b.facts || "";
+      document.getElementById("isCrown").checked = b.is_crown || false;
+      document.getElementById("isPNG").checked = b.is_png || false;
+      document.getElementById("orderSelect").value = b.order || "none";
+    });
+
+    // 🧩 Répartition dans les bons tableaux
     if (tables[b.list]) tables[b.list].appendChild(div);
     if (b.is_crown) tables.couronne.appendChild(div.cloneNode(true));
     if (b.is_png) tables.png.appendChild(div.cloneNode(true));
