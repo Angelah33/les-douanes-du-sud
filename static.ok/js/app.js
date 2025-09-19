@@ -51,103 +51,117 @@ const pagers = {
 };
 
 // ✅ Création d’un brigand
-document.getElementById("createForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+document.addEventListener("DOMContentLoaded", () => {
+  const createForm = document.getElementById("createForm");
+  if (createForm) {
+    createForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  const brigand = {
-    name: document.getElementById("name").value.trim(),
-    list: document.getElementById("primaryList").value,
-    facts: document.getElementById("facts").value.trim(),
-    is_crown: document.getElementById("isCrown").checked,
-    is_png: document.getElementById("isPNG").checked,
-    order: document.getElementById("orderSelect").value
-  };
+      const brigand = {
+        name: document.getElementById("name").value.trim(),
+        list: document.getElementById("primaryList").value,
+        facts: document.getElementById("facts").value.trim(),
+        is_crown: document.getElementById("isCrown").checked,
+        is_png: document.getElementById("isPNG").checked,
+        order: document.getElementById("orderSelect").value
+      };
 
-  try {
-    const res = await fetch("/api/brigands", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(brigand)
+      try {
+        const res = await fetch("/api/brigands", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(brigand)
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert("Brigand ajouté !");
+          e.target.reset();
+          reloadBrigands();
+        } else {
+          alert("Erreur : " + result.error);
+        }
+      } catch (err) {
+        console.error("Erreur réseau :", err);
+        alert("Erreur réseau");
+      }
     });
-
-    const result = await res.json();
-    if (res.ok) {
-      alert("Brigand ajouté !");
-      e.target.reset();
-      reloadBrigands();
-    } else {
-      alert("Erreur : " + result.error);
-    }
-  } catch (err) {
-    console.error("Erreur réseau :", err);
-    alert("Erreur réseau");
   }
-});
 
 // 🔧 Modifier le brigand sélectionné
-document.getElementById("updateButton").addEventListener("click", async () => {
-  if (!selectedBrigand || !selectedBrigand.id) {
-    alert("Aucun brigand sélectionné.");
-    return;
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const updateBtn = document.getElementById("updateButton");
+  if (updateBtn) {
+    updateBtn.addEventListener("click", async () => {
+      if (!selectedBrigand || !selectedBrigand.id) {
+        alert("Aucun brigand sélectionné.");
+        return;
+      }
 
-  const updatedBrigand = {
-    name: document.getElementById("name").value.trim(),
-    list: document.getElementById("primaryList").value,
-    facts: document.getElementById("facts").value.trim(),
-    is_crown: document.getElementById("isCrown").checked,
-    is_png: document.getElementById("isPNG").checked,
-    order: document.getElementById("orderSelect").value
-  };
+      const updatedBrigand = {
+        name: document.getElementById("name").value.trim(),
+        list: document.getElementById("primaryList").value,
+        facts: document.getElementById("facts").value.trim(),
+        is_crown: document.getElementById("isCrown").checked,
+        is_png: document.getElementById("isPNG").checked,
+        order: document.getElementById("orderSelect").value
+      };
 
-  try {
-    const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedBrigand)
+      try {
+        const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedBrigand)
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert("Brigand modifié !");
+          selectedBrigand = null;
+          document.getElementById("createForm").reset();
+          reloadBrigands();
+        } else {
+          alert("Erreur : " + result.error);
+        }
+      } catch (err) {
+        console.error("Erreur réseau :", err);
+        alert("Erreur réseau");
+      }
     });
-
-    const result = await res.json();
-    if (res.ok) {
-      alert("Brigand modifié !");
-      selectedBrigand = null;
-      document.getElementById("createForm").reset();
-      reloadBrigands();
-    } else {
-      alert("Erreur : " + result.error);
-    }
-  } catch (err) {
-    console.error("Erreur réseau :", err);
-    alert("Erreur réseau");
   }
 });
 
 // 🗑️ Supprimer le brigand sélectionné
-document.getElementById("deleteButton").addEventListener("click", async () => {
-  if (!selectedBrigand || !selectedBrigand.id) {
-    alert("Aucun brigand sélectionné.");
-    return;
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const deleteBtn = document.getElementById("deleteButton");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      if (!selectedBrigand || !selectedBrigand.id) {
+        alert("Aucun brigand sélectionné.");
+        return;
+      }
 
-  if (!confirm("Confirmer la suppression du brigand ?")) return;
+      if (!confirm("Confirmer la suppression du brigand ?")) return;
 
-  try {
-    const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-      method: "DELETE"
+      try {
+        const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
+          method: "DELETE"
+        });
+
+        if (res.ok) {
+          alert("Brigand supprimé !");
+          selectedBrigand = null;
+          document.getElementById("createForm").reset();
+          reloadBrigands();
+        } else {
+          const result = await res.json();
+          alert("Erreur : " + result.error);
+        }
+      } catch (err) {
+        console.error("Erreur réseau :", err);
+        alert("Erreur réseau");
+      }
     });
-
-    if (res.ok) {
-      alert("Brigand supprimé !");
-      selectedBrigand = null;
-      document.getElementById("createForm").reset();
-      reloadBrigands();
-    } else {
-      const result = await res.json();
-      alert("Erreur : " + result.error);
-    }
-  } catch (err) {
-    console.error("Erreur réseau :", err);
-    alert("Erreur réseau");
   }
 });
 
