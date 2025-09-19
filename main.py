@@ -55,6 +55,21 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
+@app.route("/api/organisations")
+def get_organisations():
+    organisations = [
+        {"id": 1, "nom_complet": "LA MANO", "nom_abrege": "LA MANO"},
+        {"id": 2, "nom_complet": "O.N.E.", "nom_abrege": "O.N.E."},
+        {"id": 3, "nom_complet": "MANOMERA", "nom_abrege": "MANOMERA"},
+        {"id": 4, "nom_complet": "DU CUL RAT MORT", "nom_abrege": "RAT MORT"},
+        {"id": 5, "nom_complet": "DURCOSASE de CUL", "nom_abrege": "DURCOSASE"},
+        {"id": 6, "nom_complet": "FATUM", "nom_abrege": "FATUM"},
+        {"id": 7, "nom_complet": "MEMENTO MORI", "nom_abrege": "MEMENTO"},
+        {"id": 8, "nom_complet": "TRÉFLES", "nom_abrege": "TRÉFLES"},
+        {"id": 9, "nom_complet": "SCORPION", "nom_abrege": "SCORPION"}
+    ]
+    return jsonify(organisations)
+
 # ---------------------------------------------------------------------
 # Modèles
 # ---------------------------------------------------------------------
