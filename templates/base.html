@@ -28,8 +28,6 @@
     </style>
   </head>
 
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-
   <!-- ✅ Ajout de la classe dynamique ici -->
   <body class="{{ page_class|default('') }}">
 
@@ -134,5 +132,7 @@
         });
       })();
     </script>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   </body>
 </html>
