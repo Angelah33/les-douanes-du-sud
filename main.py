@@ -732,6 +732,68 @@ def create_brigand():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/brigands/search")
+def search_brigand_by_name():
+    name = request.args.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "Nom IG manquant"}), 400
+
+    brigand = Brigand.query.filter_by(name=name).first()
+    if not brigand:
+        return jsonify({"error": "Brigand introuvable"}), 404
+
+    return jsonify({
+        "id": brigand.id,
+        "name": brigand.name,
+        "list": brigand.list,
+        "facts": brigand.facts,
+        "is_crown": brigand.is_crown,
+        "is_png": brigand.is_png,
+        "order": brigand.order
+    })
+
+@app.route("/api/brigands/<int:brigand_id>", methods=["PUT"])
+def update_brigand(brigand_id):
+    data = request.get_json()
+    brigand = Brigand.query.get(brigand_id)
+    if not brigand:
+        return jsonify({"error": "Brigand introuvable"}), 404
+
+    brigand.name = data.get("name", brigand.name).strip()
+    brigand.list = data.get("list", brigand.list).strip()
+    brigand.facts = data.get("facts", brigand.facts).strip()
+    brigand.is_crown = bool(data.get("is_crown"))
+    brigand.is_png = bool(data.get("is_png"))
+    brigand.order = data.get("order", brigand.order).strip()
+
+    try:
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/brigands/delete-by-name", methods=["POST"])
+def delete_brigands_by_name():
+    data = request.get_json()
+    names = data.get("names", [])
+    if not isinstance(names, list) or not names:
+        return jsonify({"error": "Liste de noms invalide"}), 400
+
+    deleted = []
+    for name in names:
+        brigand = Brigand.query.filter_by(name=name.strip()).first()
+        if brigand:
+            db.session.delete(brigand)
+            deleted.append(name)
+
+    try:
+        db.session.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 # ---------- Interfaces prévôtales ----------
 
 @app.route("/brigands")
