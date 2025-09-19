@@ -324,12 +324,17 @@ async function chargerOrganisations() {
     [selectCreate, selectEdit].forEach(select => {
       if (!select) return;
       select.innerHTML = '<option value="">Aucun</option>';
-      data.forEach(orga => {
-        const opt = document.createElement('option');
-        opt.value = orga.id;
-        opt.textContent = orga.nom;
-        select.appendChild(opt);
-      });
+if (Array.isArray(data)) {
+  data.forEach(orga => {
+    if (!orga || !orga.id || !orga.nom) return;
+    const opt = document.createElement('option');
+    opt.value = orga.id;
+    opt.textContent = orga.nom;
+    select.appendChild(opt);
+  });
+} else {
+  console.warn("Réponse inattendue pour les organisations :", data);
+}
     });
   } catch (err) {
     console.error("Impossible de charger les organisations :", err);
