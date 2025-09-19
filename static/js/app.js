@@ -67,6 +67,16 @@ function initDOM() {
   DOM.editOrder = document.getElementById("editOrder");
 }
 
+// Utilitaire: normaliser la sélection d'organisation
+function normalizeOrderValue(raw) {
+  if (raw == null) return null;
+  const v = String(raw).trim().toLowerCase();
+  if (v === "" || v === "aucune" || v === "aucun" || v === "none" || v === "null") {
+    return null;
+  }
+  return raw;
+}
+
   // ✅ Création d’un brigand
   DOM.createForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -77,7 +87,7 @@ function initDOM() {
       facts: DOM.factsInput?.value.trim(),
       is_crown: DOM.isCrown?.checked,
       is_png: DOM.isPNG?.checked,
-      order: DOM.orderSelect?.value
+      order: normalizeOrderValue(DOM.orderSelect?.value)
     };
 
     try {
@@ -114,7 +124,7 @@ function initDOM() {
       facts: DOM.factsInput?.value.trim(),
       is_crown: DOM.isCrown?.checked,
       is_png: DOM.isPNG?.checked,
-      order: DOM.orderSelect?.value
+      order: normalizeOrderValue(DOM.orderSelect?.value)
     };
 
     try {
