@@ -52,7 +52,6 @@ const pagers = {
 
 // ✅ Création d’un brigand
 document.addEventListener("DOMContentLoaded", () => {
-  const createForm = document.getElementById("createForm");
   if (createForm) {
     createForm.addEventListener("submit", async (e) => {
       e.preventDefault();
