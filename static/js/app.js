@@ -575,7 +575,7 @@ function bindEvents() {
       facts: DOM.facts.value.trim(),
       is_crown: DOM.isCrown.checked,
       is_png: DOM.isPNG.checked,
-      order: normalizeOrderValue(DOM.orderSelect.value),
+      order_id: DOM.orderSelect.value || null,
     };
     if (!payload.name) return alert("Le nom IG est requis.");
     try {
@@ -617,71 +617,183 @@ function bindEvents() {
     });
   }
 
-  // Modal
-  DOM.closeModal?.addEventListener("click", hideModal);
-  DOM.cancelEdit?.addEventListener("click", hideModal);
+// =========== Modal ===========
 
-  DOM.editForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const id = DOM.editId.value;
-    const payload = {
-      name: DOM.editName.value.trim(),
-      list: DOM.editPrimary.value,
-      facts: DOM.editFacts.value.trim(),
-      is_crown: DOM.editCrown.checked,
-      is_png: DOM.editPNG.checked,
-      order: normalizeOrderValue(DOM.editOrder.value),
-    };
-    try {
-      await apiUpdateBrigand(id, payload);
-      hideModal();
-      await reloadAll();
-      alert("Brigand modifié !");
-    } catch (err) {
-      alert(err.message);
-    }
+// Fermeture du modal
+DOM.closeModal?.addEventListener("click", hideModal);
+DOM.cancelEdit?.addEventListener("click", hideModal);
+DOM.modal?.addEventListener("click", (e) => {
+  if (e.target === DOM.modal) hideModal();
+});
+
+// Soumission du formulaire d’édition
+DOM.editForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = DOM.editId.value;
+  const payload = {
+    name: DOM.editName.value.trim(),
+    list: DOM.editPrimary.value || "",
+    facts: DOM.editFacts.value.trim(),
+    is_crown: DOM.editCrown.checked,
+    is_png: DOM.editPNG.checked,
+    order_id: DOM.editOrder.value || null,
+  };
+  if (!payload.name) return alert("Le nom IG est requis.");
+  try {
+    await apiUpdateBrigand(id, payload);
+    hideModal();
+    await reloadAll();
+    alert("Brigand modifié !");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// Suppression depuis le modal
+DOM.deleteEntry?.addEventListener("click", async () => {
+  const id = DOM.editId.value;
+  if (!id) return;
+  if (!confirm("Supprimer ce brigand ?")) return;
+  try {
+    await apiDeleteBrigand(id);
+    hideModal();
+    await reloadAll();
+    alert("Brigand supprimé !");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// Création d’une organisation
+DOM.orderForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nom_complet = (DOM.orderName.value || "").trim();
+  const nom_abrege = (DOM.orderShort.value || "").trim();
+  if (!nom_complet) return alert("Le nom complet est requis.");
+  try {
+    await apiCreateOrg(nom_complet, nom_abrege || null);
+    DOM.orderForm.reset();
+    await loadOrganisations(); // recharge les <select>
+    await reloadAll();         // recharge les tableaux
+    alert("Organisation ajoutée !");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// =========== Tabs ===========
+
+document.querySelectorAll(".tabs .tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // désactiver tous les boutons
+    document.querySelectorAll(".tabs .tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // masquer toutes les sections
+    document.querySelectorAll(".tabpane").forEach(pane => pane.classList.remove("active"));
+
+    // afficher la section ciblée
+    const target = document.getElementById("tab-" + btn.dataset.tab);
+    if (target) target.classList.add("active");
   });
+});
 
-  DOM.deleteEntry?.addEventListener("click", async () => {
-    const id = DOM.editId.value;
-    if (!id) return;
-    if (!confirm("Supprimer ce brigand ?")) return;
-    try {
-      await apiDeleteBrigand(id);
-      hideModal();
-      await reloadAll();
-      alert("Brigand supprimé !");
-    } catch (err) {
-      alert(err.message);
-    }
-  });
+// =========== Boot ===========
 
-  // Organisations (admin)
-  DOM.orderForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const nom_complet = (DOM.orderName.value || "").trim();
-    const nom_abrege = (DOM.orderShort.value || "").trim();
-    if (!nom_complet) return alert("Le nom complet est requis.");
-    try {
-      await apiCreateOrg(nom_complet, nom_abrege || null);
-      DOM.orderForm.reset();
-      await reloadAll();
-      alert("Organisation ajoutée !");
-    } catch (err) {
-      alert(err.message);
-    }
-  });
+async function loadOrganisations() {
+  const res = await fetch("/api/organisations");
+  const data = await res.json();
 
-  // Fermer le modal en cliquant sur le fond
-  DOM.modal?.addEventListener("click", (e) => {
-    if (e.target === DOM.modal) hideModal();
+  const selects = [document.getElementById("orderSelect"), document.getElementById("editOrder")];
+  selects.forEach(sel => {
+    sel.innerHTML = '<option value="">Aucune</option>';
+    data.forEach(org => {
+      sel.innerHTML += `<option value="${org.id}">${org.nom_abrege || org.nom_complet}</option>`;
+    });
   });
 }
 
-// =========== Boot ===========
+async function loadBrigands() {
+  const res = await fetch("/api/brigands");
+  const data = await res.json();
+
+  ["noire","surveillance","hors","archives","couronne","png"].forEach(id => {
+    document.getElementById("table-" + id).innerHTML = "";
+  });
+
+  data.forEach(b => {
+    const row = `<div>${b.name} — ${b.list || "Aucune"} — ${b.organisation || "Aucune"} — ${b.facts || ""}</div>`;
+
+    if (b.list === "noire") document.getElementById("table-noire").innerHTML += row;
+    if (b.list === "surveillance") document.getElementById("table-surveillance").innerHTML += row;
+    if (b.list === "hors") document.getElementById("table-hors").innerHTML += row;
+    if (b.list === "archives") document.getElementById("table-archives").innerHTML += row;
+
+    if (b.is_crown) document.getElementById("table-couronne").innerHTML += row;
+    if (b.is_png) document.getElementById("table-png").innerHTML += row;
+  });
+}
+
+  async function loadOrdersTable() {
+  const res = await fetch("/api/organisations");
+  const data = await res.json();
+
+  const container = document.getElementById("ordersTable");
+  container.innerHTML = "";
+
+  if (!data.length) {
+    container.innerHTML = "<p>Aucune organisation enregistrée.</p>";
+    return;
+  }
+
+  const table = document.createElement("table");
+  table.classList.add("org-table");
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Nom complet</th>
+        <th>Nom abrégé</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${data
+        .map(
+          (org) => `
+        <tr>
+          <td>${org.nom_complet}</td>
+          <td>${org.nom_abrege || "-"}</td>
+          <td><button class="btn small danger" data-id="${org.id}">Supprimer</button></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  `;
+
+  container.appendChild(table);
+
+  // Brancher les boutons de suppression
+  container.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Supprimer cette organisation ?")) return;
+      try {
+        await apiDeleteOrg(btn.dataset.id);
+        await loadOrganisations(); // recharge les <select>
+        await loadOrdersTable();   // recharge le tableau
+        alert("Organisation supprimée !");
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  });
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
   initDOM();
   bindEvents();
   await reloadAll();
+  await loadOrganisations();
+  await loadBrigands();
+  await loadOrdersTable();
 });
