@@ -30,14 +30,9 @@ function byName(a, b) {
 
 function escapeText(s) {
   return (s ?? "")
-    .replace(/
-
-\[b.*?\]
-
-/g, "")
-    .replace(/\]
-
-/g, "");
+    .replace(/\[b.*?\]/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/\n/g, " ");
 }
 
 function getOrgById(id) {
