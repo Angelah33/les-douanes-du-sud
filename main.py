@@ -64,7 +64,9 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
 db_url = os.getenv("DATABASE_URL", "sqlite:///local.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = pg_uri(db_url)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)   # sessions normales : 7 jours
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)   # "Rester connecte(e)" : 1 an
+app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
 
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Paris")
 TZ = pytz.timezone(TIMEZONE)
@@ -405,6 +407,13 @@ def inject_globals():
 # ---------------------------------------------------------------------
 @app.route("/")
 def home():
+    # Si l'utilisateur est déjà connecté, on le redirige selon son rôle
+    if current_user.is_authenticated:
+        if current_user.role == "marechal":
+            return redirect(url_for("rapport"))
+        elif current_user.role in ["prevot", "superadmin"]:
+            return redirect(url_for("dashboard"))
+    # Sinon, on affiche la page d'accueil classique
     return render_template("index.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -418,7 +427,15 @@ def login():
             flash("Identifiants incorrects.")
             return render_template("login.html")
         login_user(user, remember=remember)
-        return redirect(url_for("dashboard"))
+
+        # Redirection selon rôle après connexion
+        if user.role == "marechal":
+            return redirect(url_for("rapport"))
+        elif user.role in ["prevot", "superadmin"]:
+            return redirect(url_for("dashboard"))
+        else:
+            return redirect(url_for("home"))
+
     return render_template("login.html")
 
 @app.route("/logout")
