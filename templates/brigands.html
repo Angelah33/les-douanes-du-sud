@@ -2,9 +2,7 @@
 {% set page_class = "brigands" %}
 {% block content %}
 
-<header class="topbar">
   <h1>Gestion des brigands</h1>
-</header>
 
 <main class="container">
   <!-- Bloc création -->
@@ -41,8 +39,10 @@
 
       <div class="field">
         <label for="orderSelect">Organisation brigande</label>
-        <select id="orderSelect" name="order">
-          <option value="">Aucun</option>
+        <!-- ⚠️ Correction : on utilise order_id -->
+        <select id="orderSelect" name="order_id">
+          <option value="">Aucune</option>
+          <!-- rempli dynamiquement par JS avec les IDs -->
         </select>
       </div>
 
@@ -148,7 +148,8 @@
       <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" name="facts" rows="3"></textarea></div>
       <div class="field check"><label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label></div>
       <div class="field check"><label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label></div>
-      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order"></select></div>
+      <!-- Correction : on utilise order_id -->
+      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order_id"></select></div>
       <div class="actions">
         <button type="submit" class="btn primary">Valider</button>
         <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>
