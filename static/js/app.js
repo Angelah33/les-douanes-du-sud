@@ -807,18 +807,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadBrigands();
   await loadOrdersTable();
 
-document.addEventListener("DOMContentLoaded", async () => {
-  initDOM();
-  bindEvents();
-  await reloadAll();
-  await loadOrganisations();
-  await loadBrigands();
-  await loadOrdersTable();
-
-  //  Ajout : affichage du blason si connecte
-  const user = {
-    isLoggedIn: {{ 'true' if current_user.is_authenticated else 'false' }},
-    bureau: "{{ current_user.bureau if current_user.is_authenticated else '' }}"
-  };
-  afficherBlasonSiConnecte(user);
+  // Ajout : affichage du blason si connecte
+  afficherBlasonSiConnecte(window.user);
 });
