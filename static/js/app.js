@@ -611,6 +611,7 @@ function bindEvents() {
       openEdit(match.id);
     });
   }
+}  
 
 // =========== Modal ===========
 
