@@ -32,13 +32,16 @@
   <body class="{{ page_class|default('') }}">
 
 <header>
-  <div id="blason" style="display:none; align-items:center; gap:10px;">
-    <!-- Le contenu (image + texte) sera injecté par app.js après connexion -->
-  </div>
-
-  <span>{{ SITE_NAME }}</span>
+  <span class="site-title">Les Douanes du Sud</span>
 
   {% if current_user.is_authenticated %}
+    {% if current_user.bureau == 'Armagnac & Comminges' %}
+      <div id="blason" style="display:flex; align-items:center; gap:10px;">
+        <img src="{{ url_for('static', filename='images/blason-ac.png') }}" alt="Blason Armagnac & Comminges" height="48">
+        <span>Armagnac & Comminges</span>
+      </div>
+    {% endif %}
+
     {% if current_user.role in ['superadmin', 'prevot'] %}
       | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
     {% endif %}
