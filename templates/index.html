@@ -3,9 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <title>Les Douanes du Sud</title>
+  <style>
+    body {
+      background-color: #D5BC84;
+      color: #7A451E;
+      font-family: Georgia, serif;
+      margin: 20px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    #blason {
+      display: none; /* masqué par défaut, affiché après connexion */
+      align-items: center;
+      gap: 10px;
+    }
+    .mentions {
+      border: 1px solid #7A451E;
+      padding: 10px;
+      margin-top: 20px;
+      background: #f9f4ec;
+      font-size: 0.9em;
+    }
+  </style>
 </head>
-<body style="background-color:#D5BC84; color:#7A451E; font-family:Georgia,serif;">
-  <h1>Les Douanes du Sud</h1>
-  <p>Bienvenue dans l'outil de génération de rapports des Maréchaux et de synthèse de douanes du Prévôt.</p>
+<body>
+  <header>
+    <h1>Les Douanes du Sud</h1>
+    <div id="blason">
+      <img src="static/img/blason-ac.png" alt="Blason Armagnac & Comminges" height="50">
+      <span>Armagnac &amp; Comminges</span>
+    </div>
+  </header>
+
+  <p><em>Chuchotez vos codes au portier pour entrer dans les bureaux ! (cliquez sur Connexion)</em></p>
+
+  <p>
+    Bienvenue dans l’outil de génération de rapports des maréchaux et de synthèse de douanes du prévôt.
+  </p>
+
+  <div class="mentions">
+    <strong>Mentions :</strong><br>
+    Ce site n’est pas un service officiel de Celsius Online.<br>
+    Il a été créé bénévolement par une joueuse pour faciliter la gestion des douanes, prévôts et maréchaux dans le jeu 
+    <em>Royaumes Renaissants</em> (Renaissance Kingdoms).<br>
+    Aucune donnée personnelle n’est collectée, transmise à des tiers ou utilisée à des fins publicitaires.
+  </div>
+
+  <!-- Chargement du script principal -->
+  <script src="static/js/app.js"></script>
+  <script>
+    // Exemple de logique pour afficher le blason après connexion
+    // Ici, on simule un utilisateur connecté du bureau A&C
+    const user = { isLoggedIn: true, bureau: "AC" };
+
+    if (user.isLoggedIn && user.bureau === "AC") {
+      document.getElementById("blason").style.display = "flex";
+    }
+  </script>
 </body>
 </html>
