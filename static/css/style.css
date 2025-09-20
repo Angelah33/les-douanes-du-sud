@@ -335,8 +335,27 @@ body.brigands .pager .page.active {
   color: #444;
 }
 
-.tag.red { color: #ff8b8b; }
-.tag.darkred { color: #ff6b6b; }
-.tag.orange { color: #ffb070; }
-.tag.indigo { color: #a8a5ff; }
-.tag.crimson { color: #ff8ea0; }
+/* Améliorations onglets */
+.tab:hover {
+  background: #f5f5f5;
+}
+body.brigands .tab:hover {
+  background: #e0d0a8;
+}
+
+/* Sections tabpanes pour plus de fluidité */
+.tabpane {
+  animation: fadeIn .2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Harmonisation des tags */
+.tag.orange { background: #fff3e0; border-color: #ffb070; color: #b35400; }
+.tag.indigo { background: #f0f0ff; border-color: #a8a5ff; color: #3a2fa0; }
+.tag.red { background: #ffeaea; border-color: #ff8b8b; color: #a00; }
+.tag.darkred { background: #ffe0e0; border-color: #ff6b6b; color: #800; }
+.tag.crimson { background: #ffe6eb; border-color: #ff8ea0; color: #a00; }
