@@ -1,4 +1,4 @@
-// =========== Constantes et état global ===========
+// =========== Constantes et etat global ===========
 
 const PAGE_SIZE = 50;
 
@@ -75,7 +75,7 @@ function formatReportLine(entry) {
 
 const DOM = {};
 function initDOM() {
-  // Création
+  // Creation
   DOM.createForm = document.getElementById("createForm");
   DOM.name = document.getElementById("name");
   DOM.primaryList = document.getElementById("primaryList");
@@ -561,7 +561,7 @@ function bindEvents() {
   // Tabs
   bindTabs();
 
-  // Création brigand
+  // Creation brigand
   DOM.createForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const payload = {
@@ -622,7 +622,7 @@ DOM.modal?.addEventListener("click", (e) => {
   if (e.target === DOM.modal) hideModal();
 });
 
-// Soumission du formulaire d’édition
+// Soumission du formulaire d’edition
 DOM.editForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = DOM.editId.value;
@@ -660,7 +660,7 @@ DOM.deleteEntry?.addEventListener("click", async () => {
   }
 });
 
-// Création d’une organisation
+// Creation d’une organisation
 DOM.orderForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const nom_complet = (DOM.orderName.value || "").trim();
@@ -681,14 +681,14 @@ DOM.orderForm?.addEventListener("submit", async (e) => {
 
 document.querySelectorAll(".tabs .tab").forEach((btn) => {
   btn.addEventListener("click", () => {
-    // désactiver tous les boutons
+    // desactiver tous les boutons
     document.querySelectorAll(".tabs .tab").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
 
     // masquer toutes les sections
     document.querySelectorAll(".tabpane").forEach(pane => pane.classList.remove("active"));
 
-    // afficher la section ciblée
+    // afficher la section ciblee
     const target = document.getElementById("tab-" + btn.dataset.tab);
     if (target) target.classList.add("active");
   });
@@ -785,6 +785,20 @@ async function loadBrigands() {
   });
 }
 
+function afficherBlasonSiConnecte(user) {
+  // Verifie que l’utilisateur est connecte ET qu’il appartient bien au bureau A&C
+  if (user.isLoggedIn && user.bureau === "Armagnac & Comminges") {
+    const blasonDiv = document.getElementById("blason");
+    if (blasonDiv) {
+      blasonDiv.innerHTML = `
+        <img src="https://i.imgur.com/Tlkcjgy.png" alt="Blason Armagnac & Comminges" height="48">
+        <b>Armagnac & Comminges</b>
+      `;
+      blasonDiv.style.display = "flex";
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   initDOM();
   bindEvents();
@@ -792,4 +806,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadOrganisations();
   await loadBrigands();
   await loadOrdersTable();
+
+document.addEventListener("DOMContentLoaded", async () => {
+  initDOM();
+  bindEvents();
+  await reloadAll();
+  await loadOrganisations();
+  await loadBrigands();
+  await loadOrdersTable();
+
+  //  Ajout : affichage du blason si connecte
+  const user = {
+    isLoggedIn: {{ 'true' if current_user.is_authenticated else 'false' }},
+    bureau: "{{ current_user.bureau if current_user.is_authenticated else '' }}"
+  };
+  afficherBlasonSiConnecte(user);
 });
