@@ -254,16 +254,8 @@ with app.app_context():
 def detecter_noms(visions, villageois, groupes_armées):
     import re
     def extraire_depuis_texte(texte):
-        texte = re.sub(r'
-
-\[.*?\]
-
-', '', texte)
-        tokens = re.split(r'[,\n;:\-\(\)
-
-\[\]
-
-]+', texte)
+        texte = re.sub(r'\[.*?\]', '', texte)
+        tokens = re.split(r'[,\n;:\-\(\)\[\]]+', texte)
         noms = []
         for token in tokens:
             mot = token.strip()
