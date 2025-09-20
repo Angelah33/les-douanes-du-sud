@@ -28,34 +28,34 @@
     </style>
   </head>
 
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-
   <!-- ✅ Ajout de la classe dynamique ici -->
   <body class="{{ page_class|default('') }}">
 
-    <header>
-      {% if BUREAU_LOGO_URL %}
-        <img src="{{ BUREAU_LOGO_URL }}" alt="Logo">
-      {% endif %}
-      <b>{{ BUREAU_NAME }}</b> - {{ SITE_NAME }}
+<header>
+  <div id="blason" style="display:none; align-items:center; gap:10px;">
+    <!-- Le contenu (image + texte) sera injecté par app.js après connexion -->
+  </div>
 
-      {% if current_user.is_authenticated %}
-        | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
-        | <a href="{{ url_for('rapport') }}">Rapport</a>
+  <span>{{ SITE_NAME }}</span>
 
-        {% set role = current_user.role if current_user.is_authenticated else '' %}
-        {% if role == 'marechal' %}
-          | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
-        {% elif role == 'prevot' %}
-          | <a href="#" data-guide="prevot">📘 Guide prévôt</a>
-          | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
-        {% endif %}
+  {% if current_user.is_authenticated %}
+    {% if current_user.role in ['superadmin', 'prevot'] %}
+      | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
+    {% endif %}
+    | <a href="{{ url_for('rapport') }}">Rapport</a>
 
-        | <a href="{{ url_for('logout') }}">Déconnexion</a>
-      {% else %}
-        | <a href="{{ url_for('login') }}">Connexion</a>
-      {% endif %}
-    </header>
+    {% if current_user.role == 'marechal' %}
+      | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
+    {% elif current_user.role == 'prevot' %}
+      | <a href="#" data-guide="prevot">📘 Guide prévôt</a>
+      | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
+    {% endif %}
+
+    | <a href="{{ url_for('logout') }}">Déconnexion</a>
+  {% else %}
+    | <a href="{{ url_for('login') }}">Connexion</a>
+  {% endif %}
+</header>
 
     <main>
       {% with messages = get_flashed_messages() %}
@@ -134,5 +134,14 @@
         });
       })();
     </script>
+
+    <script>
+      window.user = {
+        isLoggedIn: {{ 'true' if current_user.is_authenticated else 'false' }},
+        bureau: "{{ current_user.bureau if current_user.is_authenticated else '' }}"
+      };
+    </script>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   </body>
 </html>

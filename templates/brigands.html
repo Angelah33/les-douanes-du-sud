@@ -2,9 +2,7 @@
 {% set page_class = "brigands" %}
 {% block content %}
 
-<header class="topbar">
   <h1>Gestion des brigands</h1>
-</header>
 
 <main class="container">
   <!-- Bloc création -->
@@ -41,8 +39,10 @@
 
       <div class="field">
         <label for="orderSelect">Organisation brigande</label>
-        <select id="orderSelect" name="order">
-          <option value="">Aucun</option>
+        <!-- ⚠️ Correction : on utilise order_id -->
+        <select id="orderSelect" name="order_id">
+          <option value="">Aucune</option>
+          <!-- rempli dynamiquement par JS avec les IDs -->
         </select>
       </div>
 
@@ -51,14 +51,6 @@
       </div>
     </form>
   </section>
-
-<section class="card">
-  <h2>Actions sur le brigand sélectionné</h2>
-  <div class="actions">
-    <button id="updateButton" class="btn primary" type="button">Modifier</button>
-    <button id="deleteButton" class="btn danger" type="button">Supprimer</button>
-  </div>
-</section>
 
   <!-- Bloc modification/suppression -->
   <section class="card">
@@ -93,11 +85,11 @@
         <form id="orderForm" class="grid">
           <div class="field">
             <label for="orderName">Nom complet</label>
-            <input type="text" id="orderName" name="name" required />
+            <input type="text" id="orderName" name="nom_complet" required />
           </div>
           <div class="field">
             <label for="orderShort">Nom abrégé</label>
-            <input type="text" id="orderShort" name="short" />
+            <input type="text" id="orderShort" name="nom_abrege" />
           </div>
           <div class="actions">
             <button class="btn brigand" type="submit">Ajouter</button>
@@ -111,14 +103,15 @@
   <!-- Ligne de séparation -->
   <hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
 
-  <!-- Titre déplacé -->
+  <!-- Titre -->
   <h4>Membres par organisation</h4>
   <div id="ordersMembers"></div>
 
-  <!-- Tabs -->
+  <!-- Onglets -->
   <div class="tabs">
     <button class="tab active" data-tab="principales">Listes principales</button>
-    <button class="tab" data-tab="annotatives">Couronne · PNG · Organisations</button>
+    <button class="tab" data-tab="couronne-png">Couronne & PNG</button>
+    <button class="tab" data-tab="organisations">Organisations brigandes</button>
   </div>
 
   <!-- Listes principales -->
@@ -129,10 +122,14 @@
     <section class="card"><h3>Archives</h3><div id="table-archives"></div></section>
   </section>
 
-  <!-- Listes annotatives -->
-  <section id="tab-annotatives" class="tabpane">
+  <!-- Couronne & PNG -->
+  <section id="tab-couronne-png" class="tabpane">
     <section class="card"><h3>Recherchés par la couronne</h3><div id="table-couronne"></div></section>
     <section class="card"><h3>PNG</h3><div id="table-png"></div></section>
+  </section>
+
+  <!-- Organisations brigandes -->
+  <section id="tab-organisations" class="tabpane">
     <section class="card"><h3>Organisations brigandes</h3><div id="table-orders"></div></section>
   </section>
 </main>
@@ -151,7 +148,8 @@
       <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" name="facts" rows="3"></textarea></div>
       <div class="field check"><label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label></div>
       <div class="field check"><label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label></div>
-      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order" required></select></div>
+      <!-- Correction : on utilise order_id -->
+      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order_id"></select></div>
       <div class="actions">
         <button type="submit" class="btn primary">Valider</button>
         <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>

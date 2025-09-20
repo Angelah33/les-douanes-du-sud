@@ -172,6 +172,7 @@ textarea {
   color: var(--muted);
 }
 
+/* ================= Onglets ================= */
 .tabs {
   display: flex;
   gap: 8px;
@@ -183,13 +184,22 @@ textarea {
   border: 1px solid var(--border);
   color: var(--text);
   padding: .5rem .8rem;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
+  transition: background .2s, color .2s;
+}
+
+.tab:hover {
+  background: #f5f5f5;
 }
 
 body.brigands .tab {
   background: #e6d8b8;
   color: var(--text);
+}
+
+body.brigands .tab:hover {
+  background: #e0d0a8;
 }
 
 .tab.active {
@@ -198,17 +208,30 @@ body.brigands .tab {
 }
 
 body.brigands .tab.active {
-  background: #d4c29e;
-  border-color: #bfa77a;
+  background: #5a3e2b;   /* marron foncé cohérent avec boutons brigand */
+  color: #fff;
+  border-color: #5a3e2b;
 }
 
 .tabpane {
   display: none;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-top: none;
+  background: #fff;
+  animation: fadeIn .2s ease-in-out;
 }
 
 .tabpane.active {
   display: block;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ========================================== */
 
 .table {
   width: 100%;
@@ -335,8 +358,8 @@ body.brigands .pager .page.active {
   color: #444;
 }
 
-.tag.red { color: #ff8b8b; }
-.tag.darkred { color: #ff6b6b; }
-.tag.orange { color: #ffb070; }
-.tag.indigo { color: #a8a5ff; }
-.tag.crimson { color: #ff8ea0; }
+/* Harmonisation des tags */
+.tag.orange { background: #fff3e0; border-color: #ffb070; color: #b35400; }
+.tag.indigo { background: #f0f0ff; border-color: #a8a5ff; color: #3a2fa0; }
+.tag.red { background: #ffeaea; border-color: #ff8b8b; color: #a00; }
+.tag.darkred
