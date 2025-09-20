@@ -134,7 +134,14 @@
         });
       })();
     </script>
-    
+
+    <script>
+      window.user = {
+        isLoggedIn: {{ 'true' if current_user.is_authenticated else 'false' }},
+        bureau: "{{ current_user.bureau if current_user.is_authenticated else '' }}"
+      };
+    </script>
+
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   </body>
 </html>
