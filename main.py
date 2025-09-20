@@ -55,21 +55,6 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
-@app.route("/api/organisations")
-def get_organisations():
-    organisations = [
-        {"id": 1, "nom_complet": "LA MANO", "nom_abrege": "LA MANO"},
-        {"id": 2, "nom_complet": "O.N.E.", "nom_abrege": "O.N.E."},
-        {"id": 3, "nom_complet": "MANOMERA", "nom_abrege": "MANOMERA"},
-        {"id": 4, "nom_complet": "DU CUL RAT MORT", "nom_abrege": "RAT MORT"},
-        {"id": 5, "nom_complet": "DURCOSASE de CUL", "nom_abrege": "DURCOSASE"},
-        {"id": 6, "nom_complet": "FATUM", "nom_abrege": "FATUM"},
-        {"id": 7, "nom_complet": "MEMENTO MORI", "nom_abrege": "MEMENTO"},
-        {"id": 8, "nom_complet": "TRÉFLES", "nom_abrege": "TRÉFLES"},
-        {"id": 9, "nom_complet": "SCORPION", "nom_abrege": "SCORPION"}
-    ]
-    return jsonify(organisations)
-
 # ---------------------------------------------------------------------
 # Modèles
 # ---------------------------------------------------------------------
@@ -124,6 +109,14 @@ class Brigand(db.Model):
     is_crown = db.Column(db.Boolean, default=False)
     is_png = db.Column(db.Boolean, default=False)
     order = db.Column(db.String(120), default="")  # nom abrégé de l'organisation
+
+class Organisation(db.Model):
+    __tablename__ = "organisations"
+    id = db.Column(db.Integer, primary_key=True)
+    nom_complet = db.Column(db.String(120), nullable=False)
+    nom_abrege = db.Column(db.String(50), nullable=True)
+    def __repr__(self):
+        return f"<Organisation {self.nom_abrege}>"
 
 # ---------- Rendu Markdown sûr (sanitize) ----------
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
@@ -416,7 +409,6 @@ from sqlalchemy import case  # utilisé pour l'ordre d'affichage des rôles
 def home():
     return render_template("home.html")
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -435,14 +427,12 @@ def login():
 
     return render_template("login.html")
 
-
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for("home"))
-
-
+    
 # ---------- Lecture des guides : renvoie du HTML à injecter en modale ----------
 @app.route("/guide/<audience>")
 @login_required
@@ -470,8 +460,9 @@ def guide_read(audience):
     # On renvoie juste le fragment HTML (le JS du template l’injecte dans la modale)
     return html
 
-
+# ---------------------------------------------------------------------
 # ---------- Routeur de tableaux de bord ----------
+# ---------------------------------------------------------------------
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -483,8 +474,9 @@ def dashboard():
     else:
         return redirect(url_for("rapport"))
 
-
+# ---------------------------------------------------------------------
 # ---------- Édition des guides (Super-admin uniquement) ----------
+# ---------------------------------------------------------------------
 @app.route("/admin/guides", methods=["GET", "POST"])
 @login_required
 def admin_guides():
@@ -550,8 +542,9 @@ def admin_guides():
 {% endblock %}
 """, gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
 
-
+# ---------------------------------------------------------------------
 # ---------- Gestion des utilisateurs (réservé superadmin) ----------
+# ---------------------------------------------------------------------
 @app.route("/admin/users", methods=["GET", "POST"], endpoint="admin_users")
 @login_required
 def admin_users():
@@ -666,8 +659,9 @@ def admin_users():
 {% endblock %}
 """, users=users)
 
-
+# ---------------------------------------------------------------------
 # ---------- Tableau de bord Admin ----------
+# ---------------------------------------------------------------------
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -684,8 +678,9 @@ def admin_dashboard():
 {% endblock %}
 """)
 
+# ---------------------------------------------------------------------
 # ---------- Tableau de bord Prévôt ----------
-
+# ---------------------------------------------------------------------
 @app.route("/prevot/dashboard")
 @login_required
 def prevot_dashboard():
@@ -708,6 +703,7 @@ def prevot_dashboard():
     {% endblock %}
     """)
 
+# ---------- API Brigands ----------
 @app.route("/api/brigands")
 def api_brigands():
     brigands = Brigand.query.order_by(Brigand.name.asc()).all()
@@ -809,8 +805,85 @@ def delete_brigands_by_name():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# ---------- Interfaces prévôtales ----------
+# ---------- API Organisations ----------
+@app.route("/api/organisations")
+def get_organisations():
+    organisations = [
+        {"id": 1, "nom_complet": "LA MANO", "nom_abrege": "LA MANO"},
+        {"id": 2, "nom_complet": "O.N.E.", "nom_abrege": "O.N.E."},
+        {"id": 3, "nom_complet": "MANOMERA", "nom_abrege": "MANOMERA"},
+        {"id": 4, "nom_complet": "DU CUL RAT MORT", "nom_abrege": "RAT MORT"},
+        {"id": 5, "nom_complet": "DURCOSASE de CUL", "nom_abrege": "DURCOSASE"},
+        {"id": 6, "nom_complet": "FATUM", "nom_abrege": "FATUM"},
+        {"id": 7, "nom_complet": "MEMENTO MORI", "nom_abrege": "MEMENTO"},
+        {"id": 8, "nom_complet": "TRÉFLES", "nom_abrege": "TRÉFLES"},
+        {"id": 9, "nom_complet": "SCORPION", "nom_abrege": "SCORPION"}
+    ]
+    return jsonify(organisations)
 
+@app.route("/api/organisations")
+def get_organisations():
+    organisations = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
+    result = []
+    for org in organisations:
+        result.append({
+            "id": org.id,
+            "nom_complet": org.nom_complet,
+            "nom_abrege": org.nom_abrege
+        })
+    return jsonify(result)
+
+@app.route("/api/organisations", methods=["POST"])
+def create_organisation():
+    data = request.get_json()
+    if not data or "nom_complet" not in data:
+        return jsonify({"error": "Le nom complet est obligatoire"}), 400
+
+    org = Organisation(
+        nom_complet=data["nom_complet"].strip(),
+        nom_abrege=(data.get("nom_abrege") or "").strip() or None
+    )
+    try:
+        db.session.add(org)
+        db.session.commit()
+        return jsonify({"success": True, "id": org.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/organisations/<int:org_id>", methods=["PUT"])
+def update_organisation(org_id):
+    data = request.get_json()
+    org = Organisation.query.get(org_id)
+    if not org:
+        return jsonify({"error": "Organisation introuvable"}), 404
+
+    org.nom_complet = data.get("nom_complet", org.nom_complet).strip()
+    org.nom_abrege = data.get("nom_abrege", org.nom_abrege).strip()
+
+    try:
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/organisations/<int:org_id>", methods=["DELETE"])
+def delete_organisation(org_id):
+    org = Organisation.query.get(org_id)
+    if not org:
+        return jsonify({"error": "Organisation introuvable"}), 404
+
+    try:
+        db.session.delete(org)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+# ---------------------------------------------------------------------
+# ---------- Interfaces prévôtales ----------
+# ---------------------------------------------------------------------
 @app.route("/brigands")
 @login_required
 def brigands():
@@ -919,8 +992,9 @@ def tableau_gardes():
         abort(403)
     return render_template_string("<h2>Tableau des gardes — à venir</h2>")
 
+# ---------------------------------------------------------------------
 # ---------- Formulaire Rapport Maréchal ----------
-
+# ---------------------------------------------------------------------
 def get_villages_traite_today():
     today = date.today()
     rapports_du_jour = Report.query.filter_by(report_date=today).all()
