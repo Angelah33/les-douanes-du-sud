@@ -1,44 +1,17 @@
-// =========== Données ===========
+// =========== Constantes et état global ===========
 
-// Page size (pagination)
 const PAGE_SIZE = 50;
 
-// Listes principales
 const PRIMARY_LABELS = {
   noire: "Liste noire",
-  surveillance: "Surveillance",
+  surveillance: "Liste de surveillance",
   hors: "Liste noire hors A&C",
   archives: "Archives",
 };
 
-// Couleurs d’affichage (BBCode) pour nom
-// NOTE: la teinte hors A&C est à valider. Ici: darkcrimson = "crimson".
-const COLOR_MAP = {
-  couronne: "darkorange",
-  noire: "red",
-  surveillance: "darkred",
-  hors: "crimson", // TODO: à confirmer/ajuster
-};
+let brigands = [];        // [{id, name, list, facts, is_crown, is_png, order}]
+let organisations = [];   // [{id, nom_complet, nom_abrege}]
 
-// Ordres initialisés (avec nom abrégé pour rapport)
-let orders = [
-  { id: cuid(), name: "LA MANO", short: "LA MANO" },
-  { id: cuid(), name: "O.N.E.", short: "O.N.E." },
-  { id: cuid(), name: "MANONERA", short: "MANONERA" },
-  { id: cuid(), name: "Cie DU RAT MORT", short: "RAT MORT" },
-  { id: cuid(), name: "DUROCASSE & Cie", short: "DUROCASSE" },
-  { id: cuid(), name: "FATUM", short: "FATUM" },
-  { id: cuid(), name: "MEMENTO MORI", short: "MEMENTO" },
-  { id: cuid(), name: "TRÊFLES", short: "TRÊFLES" },
-  { id: cuid(), name: "SCORPION DE SEL", short: "SCORPION" },
-  { id: "none", name: "— Aucun ordre —", short: "" }, // option exigée si pas d’ordre
-];
-
-// Entrées brigands
-let brigands = []; // {id, name, facts, primary, isCrown, isPNG, orderId}
-let selectedBrigand = null; // ← brigand actuellement sélectionné pour modification
-
-// États de pagination par tableau
 const pagers = {
   noire: 1,
   surveillance: 1,
@@ -46,469 +19,295 @@ const pagers = {
   archives: 1,
   couronne: 1,
   png: 1,
-  // Orders: pagination par ordre, stockée dynamiquement
-  orderMembers: {}, // {orderId: currentPage}
+  orderMembers: {} // {orgId: currentPage}
 };
 
-// Références DOM
-const DOM = {};
-function initDOM() {
-  DOM.createForm = document.getElementById("createForm");
-  DOM.nameInput = document.getElementById("name");
-  DOM.primarySelect = document.getElementById("primaryList");
-  DOM.factsInput = document.getElementById("facts");
-  DOM.isCrown = document.getElementById("isCrown");
-  DOM.isPNG = document.getElementById("isPNG");
-  DOM.orderSelect = document.getElementById("orderSelect");
-  DOM.updateBtn = document.getElementById("updateButton");
-  DOM.deleteBtn = document.getElementById("deleteButton");
-  DOM.deleteForm = document.getElementById("deleteForm");
-  DOM.deleteNames = document.getElementById("deleteNames");
-  DOM.editOrder = document.getElementById("editOrder");
-}
-
-// Utilitaire: normaliser la sélection d'organisation
-function normalizeOrderValue(raw) {
-  if (raw == null) return null;
-  const v = String(raw).trim().toLowerCase();
-  if (v === "" || v === "aucune" || v === "aucun" || v === "none" || v === "null") {
-    return null;
-  }
-  return raw;
-}
-
-// Utilitaire: charger les organisations dans le menu déroulant
-async function loadOrganisations() {
-  try {
-    const res = await fetch("/api/organisations");
-    const organisations = await res.json();
-    console.log("Organisations reçues :", organisations);
-    const select = DOM.orderSelect;
-    if (!select) return;
-
-    // Réinitialiser le menu
-    select.innerHTML = '<option value="">Aucun</option>';
-
-    // Injecter les organisations
-    organisations.forEach(org => {
-      const option = document.createElement("option");
-      option.value = org.id;
-      option.textContent = `${org.nom_complet} (${org.nom_abrege})`;
-      select.appendChild(option);
-    });
-  } catch (err) {
-    console.error("Erreur lors du chargement des organisations :", err);
-  }
-}
-
-  // ✅ Création d’un brigand
-  DOM.createForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const brigand = {
-      name: DOM.nameInput?.value.trim(),
-      list: DOM.primarySelect?.value,
-      facts: DOM.factsInput?.value.trim(),
-      is_crown: DOM.isCrown?.checked,
-      is_png: DOM.isPNG?.checked,
-      order: normalizeOrderValue(DOM.orderSelect?.value)
-    };
-
-    try {
-      const res = await fetch("/api/brigands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(brigand)
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        alert("Brigand ajouté !");
-        e.target.reset();
-        reloadBrigands();
-      } else {
-        alert("Erreur : " + result.error);
-      }
-    } catch (err) {
-      console.error("Erreur réseau :", err);
-      alert("Erreur réseau");
-    }
-  });
-
-  // 🔧 Modifier le brigand sélectionné
-  DOM.updateBtn?.addEventListener("click", async () => {
-    if (!selectedBrigand?.id) {
-      alert("Aucun brigand sélectionné.");
-      return;
-    }
-
-    const updatedBrigand = {
-      name: DOM.nameInput?.value.trim(),
-      list: DOM.primarySelect?.value,
-      facts: DOM.factsInput?.value.trim(),
-      is_crown: DOM.isCrown?.checked,
-      is_png: DOM.isPNG?.checked,
-      order: normalizeOrderValue(DOM.orderSelect?.value)
-    };
-
-    try {
-      const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedBrigand)
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        alert("Brigand modifié !");
-        selectedBrigand = null;
-        DOM.createForm?.reset();
-        reloadBrigands();
-      } else {
-        alert("Erreur : " + result.error);
-      }
-    } catch (err) {
-      console.error("Erreur réseau :", err);
-      alert("Erreur réseau");
-    }
-  });
-
-  // 🗑️ Supprimer le brigand sélectionné
-  DOM.deleteBtn?.addEventListener("click", async () => {
-    if (!selectedBrigand?.id) {
-      alert("Aucun brigand sélectionné.");
-      return;
-    }
-
-    if (!confirm("Confirmer la suppression du brigand ?")) return;
-
-    try {
-      const res = await fetch(`/api/brigands/${selectedBrigand.id}`, {
-        method: "DELETE"
-      });
-
-      if (res.ok) {
-        alert("Brigand supprimé !");
-        selectedBrigand = null;
-        DOM.createForm?.reset();
-        reloadBrigands();
-      } else {
-        const result = await res.json();
-        alert("Erreur : " + result.error);
-      }
-    } catch (err) {
-      console.error("Erreur réseau :", err);
-      alert("Erreur réseau");
-    }
-  });
-
-  // 🧹 Suppression par nom
-  DOM.deleteForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const raw = DOM.deleteNames?.value.trim();
-    if (!raw) return alert("Aucun nom à supprimer");
-
-    const names = raw.split("\n").map(n => n.trim()).filter(n => n);
-    if (!names.length) return alert("Format invalide");
-
-    try {
-      const res = await fetch("/api/brigands/delete-by-name", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ names })
-      });
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Erreur lors de la suppression");
-
-      alert(`Brigands supprimés : ${result.deleted.join(", ")}`);
-      DOM.deleteNames.value = "";
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-// 🔄 Rechargement des brigands
-async function reloadBrigands() {
-  try {
-    const res = await fetch("/api/brigands");
-    const data = await res.json();
-    brigands = data;
-    renderAllTables();
-  } catch (err) {
-    console.error("Erreur lors du rechargement des brigands :", err);
-  }
-}
-
-// 🧩 Affichage des brigands dans les tableaux
-function renderAllTables() {
-  const tables = {
-    noire: document.getElementById("table-noire"),
-    surveillance: document.getElementById("table-surveillance"),
-    hors: document.getElementById("table-hors"),
-    archives: document.getElementById("table-archives"),
-    couronne: document.getElementById("table-couronne"),
-    png: document.getElementById("table-png"),
-    orders: document.getElementById("table-orders")
-  };
-
-  // Nettoyer les tableaux
-  for (const key in tables) {
-    tables[key].innerHTML = "";
-  }
-
-  // Répartir les brigands
-  brigands.forEach((b) => {
-    const div = document.createElement("div");
-    div.className = "brigand-entry";
-    div.textContent = b.name + (b.facts ? " — " + b.facts : "");
-
-    // 🔄 Rendre le brigand cliquable pour modification
-    div.addEventListener("click", () => {
-      selectedBrigand = b;
-      document.getElementById("name").value = b.name;
-      document.getElementById("primaryList").value = b.list;
-      document.getElementById("facts").value = b.facts || "";
-      document.getElementById("isCrown").checked = b.is_crown || false;
-      document.getElementById("isPNG").checked = b.is_png || false;
-      document.getElementById("orderSelect").value = b.order || "none";
-    });
-
-    // 🧩 Répartition dans les bons tableaux
-    if (tables[b.list]) tables[b.list].appendChild(div);
-    if (b.is_crown) tables.couronne.appendChild(div.cloneNode(true));
-    if (b.is_png) tables.png.appendChild(div.cloneNode(true));
-    if (b.order && b.order !== "none") tables.orders.appendChild(div.cloneNode(true));
-  });
-}
-
 // =========== Utils ===========
-function cuid() {
-  return "id-" + Math.random().toString(36).slice(2, 10);
-}
 
 function byName(a, b) {
-  return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
-}
-
-function getOrderById(id) {
-  return orders.find(o => o.id === id);
+  return (a.name || "").localeCompare((b.name || ""), "fr", { sensitivity: "base" });
 }
 
 function escapeText(s) {
-  return (s || "")
-    .replace(/\[b.*?\]/g, "")   // ligne 1 : regex complète sur une ligne
-    .replace(/\]/g, "");        // ligne 2 : autre regex complète
+  return (s ?? "")
+    .replace(/
+
+\[b.*?\]
+
+/g, "")
+    .replace(/\]
+
+/g, "");
 }
 
-// Règles d’assemblage (export BBCode pour rapports)
+function getOrgById(id) {
+  if (!id) return null;
+  return organisations.find(o => String(o.id) === String(id)) || null;
+}
+
 function formatReportLine(entry) {
-  const order = getOrderById(entry.orderId);
-  // Couleur nom: Couronne > (sinon) primaire (noire/surveillance/hors). Archives pas de couleur
+  // Couleurs (optionnel dans l’aperçu)
+  const COLOR_MAP = {
+    couronne: "darkorange",
+    noire: "red",
+    surveillance: "darkred",
+    hors: "crimson",
+  };
+
   let color = null;
-  if (entry.isCrown) color = COLOR_MAP.couronne;
-  else if (entry.primary === "noire") color = COLOR_MAP.noire;
-  else if (entry.primary === "surveillance") color = COLOR_MAP.surveillance;
-  else if (entry.primary === "hors") color = COLOR_MAP.hors;
+  if (entry.is_crown) color = COLOR_MAP.couronne;
+  else if (entry.list === "noire") color = COLOR_MAP.noire;
+  else if (entry.list === "surveillance") color = COLOR_MAP.surveillance;
+  else if (entry.list === "hors") color = COLOR_MAP.hors;
 
   const nameBB = color ? `[color=${color}]${escapeText(entry.name)}[/color]` : escapeText(entry.name);
 
-  // Mentions: toujours toutes, dans l’ordre: Couronne, PNG, Ordre
+  const org = getOrgById(entry.order);
   const mentions = [];
-  if (entry.isCrown) mentions.push("Recherché par la couronne de France");
-  if (entry.isPNG) mentions.push("[color=indigo]PNG[/color]");
-  if (order && order.short) mentions.push(order.short);
+  if (entry.is_crown) mentions.push("Recherché par la couronne de France");
+  if (entry.is_png) mentions.push("[color=indigo]PNG[/color]");
+  if (org?.nom_abrege) mentions.push(org.nom_abrege);
 
-  // Faits reprochés si présents
   const facts = entry.facts ? escapeText(entry.facts) : "";
 
-  // Assemblage
   const parts = [nameBB];
   if (mentions.length) parts.push(mentions.join(" - "));
   if (facts) parts.push(facts);
   return parts.join(" - ");
 }
 
-// =========== DOM refs ===========
-const createForm = document.getElementById("createForm");
-const nameInput = document.getElementById("name");
-const factsInput = document.getElementById("facts");
-const primarySelect = document.getElementById("primaryList");
-const isCrownInput = document.getElementById("isCrown");
-const isPNGInput = document.getElementById("isPNG");
-const orderSelect = document.getElementById("orderSelect");
+// =========== DOM ===========
 
-const tables = {
-  noire: document.getElementById("table-noire"),
-  surveillance: document.getElementById("table-surveillance"),
-  hors: document.getElementById("table-hors"),
-  archives: document.getElementById("table-archives"),
-  couronne: document.getElementById("table-couronne"),
-  png: document.getElementById("table-png"),
-};
-
-const tabButtons = document.querySelectorAll(".tab");
-const panes = {
-  principales: document.getElementById("tab-principales"),
-  annotatives: document.getElementById("tab-annotatives"),
-};
-
-// Orders management
-const ordersTable = document.getElementById("ordersTable");
-const ordersMembers = document.getElementById("ordersMembers");
-const orderForm = document.getElementById("orderForm");
-const orderName = document.getElementById("orderName");
-const orderShort = document.getElementById("orderShort");
-
-// Modal
-const modal = document.getElementById("modal");
-const closeModalBtn = document.getElementById("closeModal");
-const editForm = document.getElementById("editForm");
-const editId = document.getElementById("editId");
-const editName = document.getElementById("editName");
-const editFacts = document.getElementById("editFacts");
-const editPrimary = document.getElementById("editPrimary");
-const editCrown = document.getElementById("editCrown");
-const editPNG = document.getElementById("editPNG");
-const editOrder = document.getElementById("editOrder");
-const deleteEntryBtn = document.getElementById("deleteEntry");
-const cancelEditBtn = document.getElementById("cancelEdit");
-
-// =========== Chargement des organisations brigandes ===========
-async function chargerOrganisations() {
-  try {
-    const res = await fetch('/api/organisations');
-    if (!res.ok) throw new Error("Erreur " + res.status);
-    const data = await res.json();
-
-    const selectCreate = document.getElementById('orderSelect');
-    const selectEdit = document.getElementById('editOrder');
-
-    [selectCreate, selectEdit].forEach(select => {
-      if (!select) return;
-      select.innerHTML = '<option value="">Aucun</option>';
-if (Array.isArray(data)) {
-  data.forEach(orga => {
-    if (!orga || !orga.id || !orga.nom) return;
-    const opt = document.createElement('option');
-    opt.value = orga.id;
-    opt.textContent = orga.nom;
-    select.appendChild(opt);
-  });
-} else {
-  console.warn("Réponse inattendue pour les organisations :", data);
-}
-    });
-  } catch (err) {
-    console.error("Impossible de charger les organisations :", err);
-  }
-}
-
-// =========== Initialisation ===========
-function init() {
-  chargerOrganisations();
-  bindEvents();
-  renderAll();
-  renderOrderSelects();
-}
-
-function renderOrderSelects() {
-  const opts = orders
-    .map(o => `<option value="${o.id}">${o.name} ${o.id === "none" ? "" : "(" + o.short + ")"}</option>`)
-    .join("");
-  DOM.orderSelect.innerHTML = opts;
-  DOM.editOrder.innerHTML = opts;
-}
-
-// =========== Événements ===========
-function bindEvents() {
-  // Tabs
-tabButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelector(".tab.active")?.classList.remove("active");
-    btn.classList.add("active");
-
-    const target = btn.dataset.tab;
-
-    // Masquer tous les panneaux
-    Object.values(panes).forEach(pane => pane.classList.add("hidden"));
-
-    // Afficher le panneau ciblé
-    const activePane = panes[target];
-    if (activePane) activePane.classList.remove("hidden");
-  });
-});
-
+const DOM = {};
+function initDOM() {
   // Création
-  createForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const entry = {
-      id: cuid(),
-      name: nameInput.value.trim(),
-      facts: factsInput.value.trim(),
-      primary: primarySelect.value,
-      isCrown: isCrownInput.checked,
-      isPNG: isPNGInput.checked,
-      orderId: orderSelect.value,
-    };
-    if (!entry.name) { alert("Le nom IG est requis."); return; }
-    if (!entry.orderId) { alert("Sélectionne un ordre."); return; }
-    brigands.push(entry);
-    createForm.reset();
-    // Remettre la liste par défaut si besoin
-    primarySelect.value = "noire";
-    renderAll();
-  });
+  DOM.createForm = document.getElementById("createForm");
+  DOM.name = document.getElementById("name");
+  DOM.primaryList = document.getElementById("primaryList");
+  DOM.facts = document.getElementById("facts");
+  DOM.isCrown = document.getElementById("isCrown");
+  DOM.isPNG = document.getElementById("isPNG");
+  DOM.orderSelect = document.getElementById("orderSelect");
 
-  // Orders gestion
-  orderForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const full = orderName.value.trim();
-    const short = orderShort.value.trim();
-    if (!full || !short) return;
-    orders = orders.filter(o => o.id !== "none"); // remonte "none" à la fin
-    orders.push({ id: cuid(), name: full, short });
-    orders.push({ id: "none", name: "— Aucun ordre —", short: "" });
-    orderForm.reset();
-    renderOrderSelects();
-    renderOrdersTables();
-    renderAnnotatives();
-  });
+  // Suppression par noms
+  DOM.deleteForm = document.getElementById("deleteForm");
+  DOM.deleteNames = document.getElementById("deleteNames");
+
+  // Recherche/édition
+  DOM.editSearchForm = document.getElementById("editSearchForm");
+  DOM.editSearchInput = document.getElementById("editSearch");
+
+  // Organisations (admin)
+  DOM.orderForm = document.getElementById("orderForm");
+  DOM.orderName = document.getElementById("orderName");
+  DOM.orderShort = document.getElementById("orderShort");
+  DOM.ordersTable = document.getElementById("ordersTable");
+  DOM.ordersMembers = document.getElementById("ordersMembers");
+
+  // Tables onglets
+  DOM.tableNoire = document.getElementById("table-noire");
+  DOM.tableSurveillance = document.getElementById("table-surveillance");
+  DOM.tableHors = document.getElementById("table-hors");
+  DOM.tableArchives = document.getElementById("table-archives");
+  DOM.tableCouronne = document.getElementById("table-couronne");
+  DOM.tablePNG = document.getElementById("table-png");
+  DOM.tableOrders = document.getElementById("table-orders");
+
+  // Tabs (3 boutons)
+  DOM.tabButtons = document.querySelectorAll(".tab");
+  DOM.panes = {
+    "principales": document.getElementById("tab-principales"),
+    "couronne-png": document.getElementById("tab-couronne-png"),
+    "organisations": document.getElementById("tab-organisations"),
+  };
 
   // Modal
-  closeModalBtn.addEventListener("click", hideModal);
-  cancelEditBtn.addEventListener("click", hideModal);
-  editForm.addEventListener("submit", onEditSubmit);
-  deleteEntryBtn.addEventListener("click", onDeleteEntry);
+  DOM.modal = document.getElementById("modal");
+  DOM.closeModal = document.getElementById("closeModal");
+  DOM.editForm = document.getElementById("editForm");
+  DOM.editId = document.getElementById("editId");
+  DOM.editName = document.getElementById("editName");
+  DOM.editFacts = document.getElementById("editFacts");
+  DOM.editPrimary = document.getElementById("editPrimary");
+  DOM.editCrown = document.getElementById("editCrown");
+  DOM.editPNG = document.getElementById("editPNG");
+  DOM.editOrder = document.getElementById("editOrder");
+  DOM.deleteEntry = document.getElementById("deleteEntry");
+  DOM.cancelEdit = document.getElementById("cancelEdit");
+}
 
-  // Fermer modal sur fond
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) hideModal();
+// =========== API helpers ===========
+
+async function fetchJSON(url, opts = {}) {
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.error || `Erreur HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function normalizeOrderValue(raw) {
+  if (raw == null) return null;
+  const v = String(raw).trim().toLowerCase();
+  if (!v || v === "aucun" || v === "none" || v === "null") return null;
+  return raw;
+}
+
+// Brigands
+async function apiGetBrigands() {
+  return fetchJSON("/api/brigands");
+}
+async function apiCreateBrigand(b) {
+  return fetchJSON("/api/brigands", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(b),
+  });
+}
+async function apiUpdateBrigand(id, b) {
+  return fetchJSON(`/api/brigands/${id}`, {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(b),
+  });
+}
+async function apiDeleteBrigand(id) {
+  return fetchJSON(`/api/brigands/${id}`, { method: "DELETE" });
+}
+async function apiDeleteByNames(names) {
+  return fetchJSON("/api/brigands/delete-by-name", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ names }),
   });
 }
 
-// =========== Rendu global ===========
+// Organisations
+async function apiGetOrgs() {
+  return fetchJSON("/api/organisations");
+}
+async function apiCreateOrg(nom_complet, nom_abrege) {
+  return fetchJSON("/api/organisations", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ nom_complet, nom_abrege }),
+  });
+}
+async function apiDeleteOrg(id) {
+  return fetchJSON(`/api/organisations/${id}`, { method: "DELETE" });
+}
+
+// =========== Chargement initial ===========
+
+async function reloadAll() {
+  const [orgs, brigs] = await Promise.all([apiGetOrgs(), apiGetBrigands()]);
+  organisations = Array.isArray(orgs) ? orgs : [];
+  brigands = Array.isArray(brigs) ? brigs : [];
+  renderAll();
+}
+
 function renderAll() {
+  renderOrderSelects();
   renderPrincipales();
-  renderAnnotatives();
-  renderOrdersTables();
+  renderCouronnePNG();
+  renderOrgsTab();
+  renderOrdersAdminTable();
+  renderOrderMembers();
 }
 
-// Principales
-function renderPrincipales() {
-  renderTablePrimary("noire", tables.noire);
-  renderTablePrimary("surveillance", tables.surveillance);
-  renderTablePrimary("hors", tables.hors);
-  renderTablePrimary("archives", tables.archives);
+// =========== Onglets ===========
+
+function bindTabs() {
+  DOM.tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelector(".tab.active")?.classList.remove("active");
+      btn.classList.add("active");
+      const key = btn.dataset.tab;
+
+      Object.values(DOM.panes).forEach(p => p.classList.remove("active"));
+      const pane = DOM.panes[key];
+      if (pane) pane.classList.add("active");
+    });
+  });
 }
 
-function filterPrimary(p) {
-  return brigands.filter(b => b.primary === p).sort(byName);
+// =========== Rendus ===========
+
+function renderOrderSelects() {
+  const options = [`<option value="">Aucun</option>`]
+    .concat(
+      organisations.map(o => {
+        const label = o.nom_abrege ? `${o.nom_complet} (${o.nom_abrege})` : o.nom_complet;
+        return `<option value="${o.id}">${label}</option>`;
+      })
+    ).join("");
+
+  if (DOM.orderSelect) DOM.orderSelect.innerHTML = options;
+  if (DOM.editOrder) DOM.editOrder.innerHTML = options;
+}
+
+function dataPrimary(primary) {
+  return brigands.filter(b => b.list === primary).sort(byName);
+}
+
+function pagerHTML(key, page, total) {
+  return `
+    <div class="pager" data-key="${key}">
+      <button class="page" data-dir="-1" ${page <= 1 ? "disabled" : ""}>◀</button>
+      <span class="badge">Page ${page}/${total}</span>
+      <button class="page" data-dir="1" ${page >= total ? "disabled" : ""}>▶</button>
+    </div>
+  `;
+}
+
+function bindPager(key, mount) {
+  const pager = mount.querySelector(`.pager[data-key="${key}"]`);
+  if (!pager) return;
+  pager.querySelectorAll(".page").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const dir = parseInt(btn.dataset.dir, 10);
+      const arr = getDatasetForKey(key);
+      const total = Math.max(1, Math.ceil(arr.length / PAGE_SIZE));
+      pagers[key] = Math.min(Math.max(1, (pagers[key] || 1) + dir), total);
+      if (["noire","surveillance","hors","archives"].includes(key)) renderPrincipales();
+      else renderCouronnePNG();
+    });
+  });
+}
+
+function getDatasetForKey(key) {
+  if (key === "couronne") return brigands.filter(b => b.is_crown).sort(byName);
+  if (key === "png") return brigands.filter(b => b.is_png).sort(byName);
+  return dataPrimary(key);
+}
+
+function rowPrimaryHTML(r) {
+  const org = getOrgById(r.order);
+  const mentions = [
+    r.is_crown ? '<span class="tag orange">Couronne</span>' : "",
+    r.is_png ? '<span class="tag indigo">PNG</span>' : "",
+    org?.nom_abrege ? `<span class="tag">${escapeText(org.nom_abrege)}</span>` : "",
+  ].filter(Boolean).join(" ");
+
+  return `
+    <tr data-id="${r.id}">
+      <td>${escapeText(r.name)}</td>
+      <td>${escapeText(r.facts || "")}</td>
+      <td>${mentions || '<span class="badge">—</span>'}</td>
+      <td><code>${formatReportLine(r)}</code></td>
+      <td class="row-actions">
+        <button class="btn small" data-action="edit">Modifier</button>
+        <button class="btn small danger" data-action="delete">Supprimer</button>
+      </td>
+    </tr>
+  `;
 }
 
 function renderTablePrimary(primary, mount) {
-  const data = filterPrimary(primary);
+  if (!mount) return;
+  const data = dataPrimary(primary);
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   pagers[primary] = Math.min(pagers[primary] || 1, totalPages);
   const page = pagers[primary];
@@ -527,7 +326,7 @@ function renderTablePrimary(primary, mount) {
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r => rowPrimaryHTML(r)).join("") || `<tr><td colspan="5">Aucune entrée</td></tr>`}
+        ${rows.map(rowPrimaryHTML).join("") || `<tr><td colspan="5">Aucune entrée</td></tr>`}
       </tbody>
     </table>
     ${pagerHTML(primary, page, totalPages)}
@@ -537,52 +336,20 @@ function renderTablePrimary(primary, mount) {
   bindRowActions(mount);
 }
 
-function rowPrimaryHTML(r) {
-  const order = getOrderById(r.orderId);
-  const mentions = [
-    r.isCrown ? '<span class="tag orange">Couronne</span>' : "",
-    r.isPNG ? '<span class="tag indigo">PNG</span>' : "",
-    order && order.short ? `<span class="tag">${order.short}</span>` : "",
-  ].filter(Boolean).join(" ");
-
-  return `
-    <tr data-id="${r.id}">
-      <td>${escapeText(r.name)}</td>
-      <td>${escapeText(r.facts || "")}</td>
-      <td>${mentions || '<span class="badge">—</span>'}</td>
-      <td><code>${formatReportLine(r)}</code></td>
-      <td class="row-actions">
-        <button class="btn small" data-action="edit">Modifier</button>
-        <button class="btn small danger" data-action="delete">Supprimer</button>
-      </td>
-    </tr>
-  `;
-}
-
-// Annotatives (noms seuls)
-function renderAnnotatives() {
-  // Couronne
-  const crown = brigands.filter(b => b.isCrown).sort(byName);
-  renderNamesOnlyTable("couronne", crown, tables.couronne);
-
-  // PNG
-  const png = brigands.filter(b => b.isPNG).sort(byName);
-  renderNamesOnlyTable("png", png, tables.png);
-
-  // Members per order
-  renderOrderMembers();
+function renderPrincipales() {
+  renderTablePrimary("noire", DOM.tableNoire);
+  renderTablePrimary("surveillance", DOM.tableSurveillance);
+  renderTablePrimary("hors", DOM.tableHors);
+  renderTablePrimary("archives", DOM.tableArchives);
 }
 
 function renderNamesOnlyTable(key, arr, mount) {
+  if (!mount) return;
   const totalPages = Math.max(1, Math.ceil(arr.length / PAGE_SIZE));
   pagers[key] = Math.min(pagers[key] || 1, totalPages);
   const page = pagers[key];
   const start = (page - 1) * PAGE_SIZE;
   const rows = arr.slice(start, start + PAGE_SIZE);
-
-  // 🔍 Ajout du log pour débogage
-  console.log(`[${key}] ${arr.length} brigands trouvés`);
-  console.log(`[${key}]`, arr.map(b => b.name));
 
   mount.innerHTML = `
     <table class="table">
@@ -611,53 +378,90 @@ function renderNamesOnlyTable(key, arr, mount) {
   bindRowActions(mount);
 }
 
-// Orders tables
-function renderOrdersTables() {
-  // Liste des ordres
-  ordersTable.innerHTML = `
+function renderCouronnePNG() {
+  const crown = brigands.filter(b => b.is_crown).sort(byName);
+  const png = brigands.filter(b => b.is_png).sort(byName);
+  renderNamesOnlyTable("couronne", crown, DOM.tableCouronne);
+  renderNamesOnlyTable("png", png, DOM.tablePNG);
+}
+
+function renderOrgsTab() {
+  if (!DOM.tableOrders) return;
+  const withOrg = brigands.filter(b => b.order).sort(byName);
+  DOM.tableOrders.innerHTML = `
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Organisation</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${withOrg.map(b => {
+          const org = getOrgById(b.order);
+          const label = org ? (org.nom_abrege || org.nom_complet) : "—";
+          return `
+            <tr data-id="${b.id}">
+              <td>${escapeText(b.name)}</td>
+              <td>${escapeText(label)}</td>
+              <td class="row-actions">
+                <button class="btn small" data-action="edit">Modifier</button>
+                <button class="btn small danger" data-action="delete">Supprimer</button>
+              </td>
+            </tr>
+          `;
+        }).join("") || `<tr><td colspan="3">Aucune entrée</td></tr>`}
+      </tbody>
+    </table>
+  `;
+  bindRowActions(DOM.tableOrders);
+}
+
+function renderOrdersAdminTable() {
+  if (!DOM.ordersTable) return;
+  DOM.ordersTable.innerHTML = `
     <table class="table">
       <thead><tr><th>Nom complet</th><th>Abrégé</th><th>Actions</th></tr></thead>
       <tbody>
-        ${orders.map(o => `
+        ${organisations.map(o => `
           <tr data-oid="${o.id}">
-            <td>${escapeText(o.name)}</td>
-            <td>${escapeText(o.short)}</td>
+            <td>${escapeText(o.nom_complet)}</td>
+            <td>${escapeText(o.nom_abrege || "")}</td>
             <td class="row-actions">
-              ${o.id==="none" ? '<span class="badge">Réservé</span>' : `
-                <button class="btn small danger" data-action="del-order">Supprimer</button>
-              `}
+              <button class="btn small danger" data-action="del-org">Supprimer</button>
             </td>
           </tr>
-        `).join("")}
+        `).join("") || `<tr><td colspan="3">Aucune organisation</td></tr>`}
       </tbody>
     </table>
   `;
 
-  ordersTable.querySelectorAll('[data-action="del-order"]').forEach(btn => {
-    btn.addEventListener("click", () => {
+  DOM.ordersTable.querySelectorAll('[data-action="del-org"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
       const tr = btn.closest("tr");
       const oid = tr.dataset.oid;
-      // Empêcher suppression si des membres l’utilisent
-      const used = brigands.some(b => b.orderId === oid);
+      const used = brigands.some(b => String(b.order) === String(oid));
       if (used) {
-        alert("Impossible: des entrées utilisent encore cet ordre.");
+        alert("Impossible: des brigands sont encore rattachés à cette organisation.");
         return;
       }
-      orders = orders.filter(o => o.id !== oid);
-      renderOrderSelects();
-      renderOrdersTables();
-      renderAnnotatives();
+      if (!confirm("Supprimer cette organisation ?")) return;
+      try {
+        await apiDeleteOrg(oid);
+        await reloadAll();
+      } catch (e) {
+        alert(e.message);
+      }
     });
   });
-
-  renderOrderMembers();
 }
 
 function renderOrderMembers() {
+  if (!DOM.ordersMembers) return;
   let html = "";
-  orders.forEach(o => {
-    if (o.id === "none") return;
-    const members = brigands.filter(b => b.orderId === o.id).sort(byName);
+  organisations.forEach(o => {
+    const members = brigands.filter(b => String(b.order) === String(o.id)).sort(byName);
     const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
     if (!pagers.orderMembers[o.id]) pagers.orderMembers[o.id] = 1;
     pagers.orderMembers[o.id] = Math.min(pagers.orderMembers[o.id], totalPages);
@@ -667,7 +471,7 @@ function renderOrderMembers() {
 
     html += `
       <div class="card">
-        <h5>${escapeText(o.name)} <span class="badge">${escapeText(o.short)}</span></h5>
+        <h5>${escapeText(o.nom_complet)} ${o.nom_abrege ? `<span class="badge">${escapeText(o.nom_abrege)}</span>` : ""}</h5>
         <table class="table">
           <thead><tr><th>Nom</th><th>Actions</th></tr></thead>
           <tbody>
@@ -690,57 +494,25 @@ function renderOrderMembers() {
       </div>
     `;
   });
-  ordersMembers.innerHTML = html;
+  DOM.ordersMembers.innerHTML = html;
 
-  // Pager des ordres
-  ordersMembers.querySelectorAll(".pager .page").forEach(btn => {
+  // Pager par organisation
+  DOM.ordersMembers.querySelectorAll(".pager .page").forEach(btn => {
     btn.addEventListener("click", () => {
       const oid = btn.dataset.omp;
       const dir = parseInt(btn.dataset.dir, 10);
-      const members = brigands.filter(b => b.orderId === oid);
+      const members = brigands.filter(b => String(b.order) === String(oid));
       const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
       pagers.orderMembers[oid] = Math.min(Math.max(1, (pagers.orderMembers[oid] || 1) + dir), totalPages);
       renderOrderMembers();
     });
   });
 
-  // Actions par ligne
-  bindRowActions(ordersMembers);
+  bindRowActions(DOM.ordersMembers);
 }
 
-// Pager helpers
-function pagerHTML(key, page, total) {
-  return `
-    <div class="pager" data-key="${key}">
-      <button class="page" data-dir="-1" ${page<=1 ? "disabled":""}>◀</button>
-      <span class="badge">Page ${page}/${total}</span>
-      <button class="page" data-dir="1" ${page>=total ? "disabled":""}>▶</button>
-    </div>
-  `;
-}
+// =========== Actions ligne ===========
 
-function bindPager(key, mount) {
-  const pager = mount.querySelector(`.pager[data-key="${key}"]`);
-  if (!pager) return;
-  pager.querySelectorAll(".page").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const dir = parseInt(btn.dataset.dir, 10);
-      const data = getDataForKey(key);
-      const total = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
-      pagers[key] = Math.min(Math.max(1, (pagers[key] || 1) + dir), total);
-      if (["noire","surveillance","hors","archives"].includes(key)) renderPrincipales();
-      else renderAnnotatives();
-    });
-  });
-}
-
-function getDataForKey(key) {
-  if (key === "couronne") return brigands.filter(b => b.isCrown).sort(byName);
-  if (key === "png") return brigands.filter(b => b.isPNG).sort(byName);
-  return filterPrimary(key);
-}
-
-// Actions ligne: modifier/supprimer
 function bindRowActions(scope) {
   scope.querySelectorAll('[data-action="edit"]').forEach(btn => {
     btn.addEventListener("click", () => {
@@ -750,149 +522,166 @@ function bindRowActions(scope) {
     });
   });
   scope.querySelectorAll('[data-action="delete"]').forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
-      if (confirm("Supprimer cette entrée ?")) {
-        brigands = brigands.filter(b => b.id !== id);
-        renderAll();
+      if (!confirm("Supprimer ce brigand ?")) return;
+      try {
+        await apiDeleteBrigand(id);
+        await reloadAll();
+      } catch (e) {
+        alert(e.message);
       }
     });
   });
 }
 
 // =========== Modal édition ===========
+
 function openEdit(id) {
-  const b = brigands.find(x => x.id === id);
+  const b = brigands.find(x => String(x.id) === String(id));
   if (!b) return;
-  editId.value = b.id;
-  editName.value = b.name;
-  editFacts.value = b.facts || "";
-  editPrimary.value = b.primary;
-  editCrown.checked = !!b.isCrown;
-  editPNG.checked = !!b.isPNG;
-  editOrder.value = b.orderId || "none";
+  DOM.editId.value = b.id;
+  DOM.editName.value = b.name || "";
+  DOM.editFacts.value = b.facts || "";
+  DOM.editPrimary.value = b.list || "";
+  DOM.editCrown.checked = !!b.is_crown;
+  DOM.editPNG.checked = !!b.is_png;
+  DOM.editOrder.value = b.order || "";
   showModal();
 }
 
-function onEditSubmit(e) {
-  e.preventDefault();
-  const id = editId.value;
-  const idx = brigands.findIndex(b => b.id === id);
-  if (idx < 0) return;
-  brigands[idx] = {
-    ...brigands[idx],
-    name: editName.value.trim(),
-    facts: editFacts.value.trim(),
-    primary: editPrimary.value,
-    isCrown: editCrown.checked,
-    isPNG: editPNG.checked,
-    orderId: editOrder.value,
-  };
-  hideModal();
-  renderAll();
-}
-
-function onDeleteEntry() {
-  const id = editId.value;
-  if (confirm("Supprimer cette entrée ?")) {
-    brigands = brigands.filter(b => b.id !== id);
-    hideModal();
-    renderAll();
-  }
-}
-
 function showModal() {
-  modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden", "false");
+  DOM.modal.classList.remove("hidden");
+  DOM.modal.setAttribute("aria-hidden", "false");
 }
 function hideModal() {
-  modal.classList.add("hidden");
-  modal.setAttribute("aria-hidden", "true");
+  DOM.modal.classList.add("hidden");
+  DOM.modal.setAttribute("aria-hidden", "true");
 }
 
-function el(tag, attrs = {}, children = []) {
-  const node = document.createElement(tag);
-  Object.entries(attrs).forEach(([k, v]) => {
-    if (k === 'class') node.className = v;
-    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
-    else node.setAttribute(k, v);
-  });
-  children.forEach(c => node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
-  return node;
-}
+// =========== Événements ===========
 
-function renderTable(container, rows) {
-  if (!rows.length) {
-    container.innerHTML = '';
-    container.appendChild(el('div', { class: 'badge' }, ['Aucune entrée']));
-    return;
-  }
+function bindEvents() {
+  // Tabs
+  bindTabs();
 
-  const table = el('table', { class: 'table' });
-  const thead = el('thead', {}, [
-    el('tr', {}, [
-      el('th', {}, ['Nom IG']),
-      el('th', {}, ['Faits reprochés']),
-    ])
-  ]);
-
-  const tbody = el('tbody');
-  rows.forEach(r => {
-    tbody.appendChild(
-      el('tr', {}, [
-        el('td', {}, [r.name || '—']),
-        el('td', {}, [r.facts || '—']),
-      ])
-    );
+  // Création brigand
+  DOM.createForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: DOM.name.value.trim(),
+      list: DOM.primaryList.value || "",
+      facts: DOM.facts.value.trim(),
+      is_crown: DOM.isCrown.checked,
+      is_png: DOM.isPNG.checked,
+      order: normalizeOrderValue(DOM.orderSelect.value),
+    };
+    if (!payload.name) return alert("Le nom IG est requis.");
+    try {
+      await apiCreateBrigand(payload);
+      DOM.createForm.reset();
+      await reloadAll();
+      alert("Brigand ajouté !");
+    } catch (err) {
+      alert(err.message);
+    }
   });
 
-  table.appendChild(thead);
-  table.appendChild(tbody);
-
-  container.innerHTML = '';
-  container.appendChild(table);
-}
-
-async function loadBrigandTables() {
-  const targets = {
-    noire: document.getElementById('table-noire'),
-    surveillance: document.getElementById('table-surveillance'),
-    hors: document.getElementById('table-hors'),
-    archives: document.getElementById('table-archives'),
-  };
-
-  Object.values(targets).forEach(div => {
-    if (div) div.innerHTML = '<div class="badge">Chargement…</div>';
+  // Suppression par noms
+  DOM.deleteForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const raw = (DOM.deleteNames.value || "").trim();
+    const names = raw.split("\n").map(s => s.trim()).filter(Boolean);
+    if (!names.length) return alert("Aucun nom valide.");
+    try {
+      const res = await apiDeleteByNames(names);
+      await reloadAll();
+      DOM.deleteNames.value = "";
+      alert(`Brigands supprimés: ${(res.deleted || []).join(", ")}`);
+    } catch (err) {
+      alert(err.message);
+    }
   });
 
-  try {
-    const res = await fetch('/api/brigands', { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    const groups = { noire: [], surveillance: [], hors: [], archives: [] };
-    (Array.isArray(data) ? data : []).forEach(b => {
-      const key = b.list;
-      if (key in groups) groups[key].push(b);
-    });
-
-    Object.entries(groups).forEach(([key, rows]) => {
-      const container = targets[key];
-      if (container) renderTable(container, rows);
-    });
-  } catch (err) {
-    console.error('Erreur chargement brigands:', err);
-    Object.values(targets).forEach(div => {
-      if (div) div.innerHTML = '<div class="badge">Erreur de chargement</div>';
+  // Recherche (ouvre le modal sur le premier match)
+  if (DOM.editSearchForm) {
+    const searchBtn = DOM.editSearchForm.querySelector("button");
+    searchBtn?.addEventListener("click", () => {
+      const q = (DOM.editSearchInput?.value || "").trim().toLowerCase();
+      if (!q) return;
+      const match = brigands.find(b => (b.name || "").toLowerCase() === q) ||
+                    brigands.find(b => (b.name || "").toLowerCase().includes(q));
+      if (!match) return alert("Aucun brigand trouvé.");
+      openEdit(match.id);
     });
   }
+
+  // Modal
+  DOM.closeModal?.addEventListener("click", hideModal);
+  DOM.cancelEdit?.addEventListener("click", hideModal);
+
+  DOM.editForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = DOM.editId.value;
+    const payload = {
+      name: DOM.editName.value.trim(),
+      list: DOM.editPrimary.value,
+      facts: DOM.editFacts.value.trim(),
+      is_crown: DOM.editCrown.checked,
+      is_png: DOM.editPNG.checked,
+      order: normalizeOrderValue(DOM.editOrder.value),
+    };
+    try {
+      await apiUpdateBrigand(id, payload);
+      hideModal();
+      await reloadAll();
+      alert("Brigand modifié !");
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  DOM.deleteEntry?.addEventListener("click", async () => {
+    const id = DOM.editId.value;
+    if (!id) return;
+    if (!confirm("Supprimer ce brigand ?")) return;
+    try {
+      await apiDeleteBrigand(id);
+      hideModal();
+      await reloadAll();
+      alert("Brigand supprimé !");
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // Organisations (admin)
+  DOM.orderForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nom_complet = (DOM.orderName.value || "").trim();
+    const nom_abrege = (DOM.orderShort.value || "").trim();
+    if (!nom_complet) return alert("Le nom complet est requis.");
+    try {
+      await apiCreateOrg(nom_complet, nom_abrege || null);
+      DOM.orderForm.reset();
+      await reloadAll();
+      alert("Organisation ajoutée !");
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // Fermer le modal en cliquant sur le fond
+  DOM.modal?.addEventListener("click", (e) => {
+    if (e.target === DOM.modal) hideModal();
+  });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  init();               // ← initialise ton app
-  initDOM();            // ← récupère les éléments HTML
-  loadOrganisations();  // ← injecte les organisations dans le menu déroulant
-  loadBrigandTables();  // ← charge les tableaux
-  // ... toute la logique de création, modif, suppression
+// =========== Boot ===========
+
+document.addEventListener("DOMContentLoaded", async () => {
+  initDOM();
+  bindEvents();
+  await reloadAll();
 });
