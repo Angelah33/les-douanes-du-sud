@@ -1,24 +1,51 @@
-from flask import Flask, render_template, render_template_string, request, redirect, url_for, flash, abort
+# -*- coding: utf-8 -*-
+from flask import Flask, render_template, render_template_string, request, redirect, url_for, flash, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import text
 import os, pytz
 from datetime import datetime, timedelta, time, date
-from flask import jsonify
+
+# --- Guides: markdown + sanitisation HTML ---
+import markdown
+import bleach
+
+# ---------------------------------------------------------------------
+# Utilitaires de date/heure et règles métier
+# ---------------------------------------------------------------------
 def get_jour_de_jeu():
     now = datetime.now()
     heure = now.hour
-
     if heure < 3:
         return (now - timedelta(days=1)).date()
     elif 3 <= heure < 5:
         return None  # période de maintenance
     else:
         return now.date()
-# --- Guides: markdown + sanitisation HTML ---
-import markdown
-import bleach
+
+def parse_hhmm(s): 
+    h, m = s.split(":")
+    return time(int(h), int(m))
+
+def is_blocked_now():
+    now = datetime.now(TZ).time()
+    start, end = parse_hhmm(BLOCK_FROM), parse_hhmm(BLOCK_TO)
+    return start <= now < end if start < end else (now >= start or now < end)
+
+def count_lines(txt): 
+    return len([ln for ln in (txt or "").splitlines() if ln.strip()])
+
+def is_superadmin():
+    return current_user.is_authenticated and getattr(current_user, "role", "") == "superadmin"
+
+def is_prevot():
+    return current_user.is_authenticated and getattr(current_user, "role", "") == "prevot"
+
+def require_prevot_or_admin():
+    role = getattr(current_user, "role", "")
+    if role not in ("prevot", "admin", "superadmin"):
+        abort(403)
 
 # ---------------------------------------------------------------------
 # Connexion DB : normalise l'URL et force psycopg (psycopg3)
@@ -92,7 +119,7 @@ class Report(db.Model):
     moves = db.Column(db.Text, default="")
     bbcode = db.Column(db.Text, default="")
 
-# ---------- Modèle pour Guides (Maréchal / Prévôt) ----------
+# ---------- Modèle pour Guides ----------
 class Guide(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     audience = db.Column(db.String(20), nullable=False, unique=True)  # 'marechal' | 'prevot'
@@ -101,22 +128,31 @@ class Guide(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.String(120), default="system")
 
-class Brigand(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    list = db.Column(db.String(20), nullable=False)  # noire, surveillance, hors, archives
-    facts = db.Column(db.Text, default="")
-    is_crown = db.Column(db.Boolean, default=False)
-    is_png = db.Column(db.Boolean, default=False)
-    order = db.Column(db.String(120), default="")  # nom abrégé de l'organisation
-
+# ---------- Organisations brigandes ----------
 class Organisation(db.Model):
     __tablename__ = "organisations"
     id = db.Column(db.Integer, primary_key=True)
     nom_complet = db.Column(db.String(120), nullable=False)
     nom_abrege = db.Column(db.String(50), nullable=True)
     def __repr__(self):
-        return f"<Organisation {self.nom_abrege}>"
+        return f"<Organisation {self.nom_abrege or self.nom_complet}>"
+
+# ---------- Brigands (Option B propre: relation par ID) ----------
+class Brigand(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    # Peut être "", "noire", "surveillance", "hors", "archives" — mais non obligatoire
+    list = db.Column(db.String(20), nullable=True, default="")
+    facts = db.Column(db.Text, default="")
+    is_crown = db.Column(db.Boolean, default=False)
+    is_png = db.Column(db.Boolean, default=False)
+
+    # Nouveau champ propre: clé étrangère vers organisations.id
+    order_id = db.Column(db.Integer, db.ForeignKey("organisations.id"), nullable=True)
+    organisation = db.relationship("Organisation", foreign_keys=[order_id])
+
+    # Ancien champ texte (déprécié) — conservé le temps de la migration douce
+    order = db.Column(db.String(120), default="")  # nom abrégé ou complet (legacy)
 
 # ---------- Rendu Markdown sûr (sanitize) ----------
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
@@ -131,19 +167,14 @@ ALLOWED_ATTRS = {
 }
 
 def render_markdown_safe(text_md: str) -> str:
-    """Convertit Markdown -> HTML puis nettoie le HTML (bleach)."""
     html = markdown.markdown(
         text_md or "",
         extensions=["extra", "tables", "sane_lists", "codehilite", "toc"]
     )
     clean = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
-    # nofollow + target=_blank sur les liens
     clean = bleach.linkify(
         clean,
-        callbacks=[
-            bleach.callbacks.nofollow,
-            bleach.callbacks.target_blank,
-        ],
+        callbacks=[bleach.callbacks.nofollow, bleach.callbacks.target_blank],
     )
     return clean
 
@@ -158,22 +189,49 @@ def load_user(user_id):
         print("Erreur lors du chargement de l'utilisateur :", e)
         return None
 
-def parse_hhmm(s): h,m = s.split(":"); return time(int(h),int(m))
-def is_blocked_now():
-    now = datetime.now(TZ).time()
-    start,end = parse_hhmm(BLOCK_FROM), parse_hhmm(BLOCK_TO)
-    return start <= now < end if start<end else (now>=start or now<end)
-def count_lines(txt): return len([ln for ln in (txt or "").splitlines() if ln.strip()])
+# ---------------------------------------------------------------------
+# Initialisation et migrations légères
+# ---------------------------------------------------------------------
+def ensure_user_bureau_column():
+    from sqlalchemy import inspect
+    insp = inspect(db.engine)
+    if "user" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("user")]
+        if "bureau" not in cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN bureau VARCHAR(120)'))
+                conn.execute(text("UPDATE \"user\" SET bureau = 'Armagnac & Comminges' WHERE bureau IS NULL"))
+                conn.execute(text("ALTER TABLE \"user\" ALTER COLUMN bureau SET DEFAULT 'Armagnac & Comminges'"))
+                conn.commit()
 
-def is_superadmin():
-    return current_user.is_authenticated and getattr(current_user, "role", "") == "superadmin"
+def ensure_brigand_order_id_column_and_migrate():
+    """
+    Ajoute la colonne order_id si absente.
+    Tente une migration douce des anciennes valeurs 'order' (texte) -> order_id en cherchant
+    d'abord par nom_abrege, puis par nom_complet. Ne supprime pas l'ancien champ.
+    """
+    from sqlalchemy import inspect
+    insp = inspect(db.engine)
+    if "brigand" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("brigand")]
+        if "order_id" not in cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE "brigand" ADD COLUMN order_id INTEGER NULL REFERENCES organisations(id)'))
+                conn.commit()
+        # Migration des valeurs legacy -> order_id
+        with app.app_context():
+            brigands = Brigand.query.all()
+            for b in brigands:
+                if b.order_id is None and (b.order or "").strip():
+                    legacy = (b.order or "").strip()
+                    org = Organisation.query.filter(
+                        (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
+                    ).first()
+                    if org:
+                        b.order_id = org.id
+            db.session.commit()
 
-def is_prevot():
-    return current_user.is_authenticated and getattr(current_user, "role", "") == "prevot"
-
-# ---------- Seed / garantie d'existence des 2 guides ----------
 def ensure_guides_exist():
-    """Crée les lignes guides 'marechal' & 'prevot' si absentes."""
     changed = False
     if not Guide.query.filter_by(audience="marechal").first():
         g = Guide(audience="marechal", content="*(Vide)*\n\nRédigez ici le **Guide maréchal**.")
@@ -184,9 +242,10 @@ def ensure_guides_exist():
     if changed:
         db.session.commit()
 
-# Appel auto au démarrage (assure les tables + guides)
 with app.app_context():
     db.create_all()
+    ensure_user_bureau_column()
+    ensure_brigand_order_id_column_and_migrate()
     ensure_guides_exist()
 
 # ---------------------------------------------------------------------
@@ -194,58 +253,49 @@ with app.app_context():
 # ---------------------------------------------------------------------
 def detecter_noms(visions, villageois, groupes_armées):
     import re
-
     def extraire_depuis_texte(texte):
-        # Supprime les balises BBCode éventuelles
-        texte = re.sub(r'\[.*?\]', '', texte)
-        # Sépare par ponctuation, retour ligne, tirets, etc.
-        tokens = re.split(r'[,\n;:\-\(\)\[\]]+', texte)
+        texte = re.sub(r'
+
+\[.*?\]
+
+', '', texte)
+        tokens = re.split(r'[,\n;:\-\(\)
+
+\[\]
+
+]+', texte)
         noms = []
         for token in tokens:
             mot = token.strip()
-            # On garde les mots avec au moins une majuscule et une longueur raisonnable
             if len(mot) >= 3 and any(c.isupper() for c in mot):
                 noms.append(mot)
         return noms
-
     noms_visions = extraire_depuis_texte(visions)
     noms_villageois = extraire_depuis_texte(villageois)
     noms_groupes = extraire_depuis_texte(groupes_armées)
-
     tous_noms = noms_visions + noms_villageois + noms_groupes
     noms_uniques = list(set(tous_noms))
-
     return noms_uniques
 
 def enrichir_nom(nom_ig):
-    """
-    Fonction à compléter une fois que les données prévôt sont accessibles.
-    Elle devra :
-    - Chercher le nom dans la liste brigands (typologie, organisation, A&C)
-    - Chercher le nom dans les fiches villageoises (statut spécial)
-    - Retourner le BBCode enrichi via generer_surveillance_bbcode()
-    """
-    # TODO : intégrer la logique une fois la page Gestion des brigands réparée
-    return nom_ig  # temporaire : retourne le nom brut
+    # TODO: intégration prévôtale (liens brigands/orga/fiches)
+    return nom_ig
 
 def generer_memoire_visions(nom_ig, typologie='', est_ac=False):
     titres_pack = ['de', 'du', 'd’', 'le', 'la', 'des', 'l’', 'de la', 'de l’']
     nom_split = nom_ig.strip().split()
     nom_reel = nom_split[0] if len(nom_split) > 1 and nom_split[1].lower() in titres_pack else nom_ig
-
     couleur = {
         'couronne': 'darkorange',
         'liste noire': 'red',
         'surveillance': 'darkred'
     }.get(typologie.lower(), '')
-
     if est_ac:
         nom_formaté = f"[b]{nom_reel}[/b]"
         if len(nom_split) > 1:
             nom_formaté += ' ' + ' '.join(nom_split[1:])
     else:
         nom_formaté = nom_ig
-
     return f"[color={couleur}]{nom_formaté}[/color]" if couleur else nom_formaté
 
 def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='', statut='', est_ac=False):
@@ -255,22 +305,18 @@ def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='',
         'surveillance': 'darkred',
         'png': 'indigo'
     }.get(typologie.lower(), '')
-
     mention = ''
     if typologie.lower() == 'couronne':
         mention = ' — Recherché par la Couronne de France'
     elif typologie.lower() == 'png':
         mention = ' — PNG Interdit de territoire'
-
     titres_pack = ['de', 'du', 'd’', 'le', 'la', 'des', 'l’', 'de la', 'de l’']
     nom_split = nom_ig.strip().split()
     nom_reel = nom_split[0] if len(nom_split) > 1 and nom_split[1].lower() in titres_pack else nom_ig
     nom_formaté = f"[b]{nom_reel}[/b]" if est_ac else nom_ig
     if est_ac and len(nom_split) > 1:
         nom_formaté += ' ' + ' '.join(nom_split[1:])
-
     bloc_coloré = f"[color={couleur}]{nom_formaté}{mention}[/color]" if couleur else nom_formaté
-
     ligne = bloc_coloré
     if organisation:
         ligne += f" — {organisation}"
@@ -278,20 +324,15 @@ def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='',
         ligne += f" — {faits}"
     if statut:
         ligne += f" ({statut})"
-
     return ligne
 
 def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, ac_presence, armies_groups, villagers, moves):
-    date_str = d.strftime("%d %B %Y")
+    date_str = d.strftime("%d %B %Y") if d else "Date inconnue"
     lines = []
-
     def title(label, count=None):
         suffix = f" [color=blue][b]{count}[/b][/color]" if count is not None else ""
         lines.append(f"[color={REPORT_TITLE_COLOR}][size=14][b][u]{label}[/u] :[/b][/size][/color]{suffix}\n")
-
     lines.append(f"[quote][center][b][size=18]{village_name}[/size]\nRapport de la maréchaussée du {date_str}.[/b][/center]\n")
-
-    # Bloc Mémoire et Visions
     if mem_visions.strip():
         lignes_mv = mem_visions.strip().split('\n')
         bloc_mv = []
@@ -307,11 +348,8 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
         mv = '\n'.join(bloc_mv) if bloc_mv else "[b]RAS.[/b]"
     else:
         mv = "[b]RAS.[/b]"
-
     title("MÉMOIRE ET VISIONS")
     lines.append(mv + "\n\n")
-
-    # Bloc Personnes en Surveillance
     if surveillance.strip():
         lignes_surv = surveillance.strip().split('\n')
         bloc_surv = []
@@ -330,45 +368,34 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
         surveillance_bbcode = '\n'.join(bloc_surv) if bloc_surv else "[b]RAS.[/b]"
     else:
         surveillance_bbcode = "[b]RAS.[/b]"
-
     title("PERSONNES EN SURVEILLANCE", count_lines(surveillance_bbcode))
     lines.append(surveillance_bbcode + "\n\n")
-
-    # Blocs restants (avec enrichissement par nom)
     def enrichir_bloc(brut):
-        lignes = brut.strip().split('\n')
+        lignes = (brut or "").strip().split('\n')
         bloc = []
         for ligne in lignes:
             if ligne.strip():
                 bloc.append(enrichir_nom(ligne.strip()))
         return '\n'.join(bloc) if bloc else "[b]RAS.[/b]"
-
     title("FLUX MIGRATOIRES", count_lines(flux))
     lines.append(enrichir_bloc(flux) + "\n\n")
-
     title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
     lines.append(enrichir_bloc(foreigners) + "\n\n")
-
     title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
     lines.append(enrichir_bloc(ac_presence) + "\n\n")
-
     title("ARMÉES ET GROUPES", count_lines(armies_groups))
     lines.append(enrichir_bloc(armies_groups) + "\n\n")
-
     title("LISTE DES VILLAGEOIS & DÉMÉNAGEMENTS")
     bloc_moves = enrichir_bloc(moves)
     bloc_villagers = enrichir_bloc(villagers)
     lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
-
     legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
              "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
              "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
              "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
              "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
              "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
-
     lines.append(legend + "\n[/quote]")
-
     return "\n".join(lines)
 
 # ---------------------------------------------------------------------
@@ -376,35 +403,14 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
 # ---------------------------------------------------------------------
 @app.context_processor
 def inject_globals():
-    return dict(SITE_NAME=SITE_NAME, UI_BG_COLOR=UI_BG_COLOR, UI_TEXT_COLOR=UI_TEXT_COLOR,
-                REPORT_TITLE_COLOR=REPORT_TITLE_COLOR, BUREAU_NAME=BUREAU_NAME, BUREAU_LOGO_URL=BUREAU_LOGO_URL)
-
-# Vérifie que la colonne "bureau" existe dans la table user,
-# et si elle n’existe pas, l’ajoute avec une valeur par défaut.
-def ensure_user_bureau_column():
-    from sqlalchemy import inspect, text
-    insp = inspect(db.engine)
-    if "user" in insp.get_table_names():
-        cols = [c["name"] for c in insp.get_columns("user")]
-        if "bureau" not in cols:
-            with db.engine.connect() as conn:
-                # 1) ajouter la colonne (sans DEFAULT d’abord)
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN bureau VARCHAR(120)'))
-                # 2) remplir les lignes existantes
-                conn.execute(text('UPDATE "user" SET bureau = \'Armagnac & Comminges\' WHERE bureau IS NULL'))
-                # 3) définir un DEFAULT pour les futures insertions
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN bureau SET DEFAULT \'Armagnac & Comminges\''))
-                conn.commit()
-
-# Appel automatique au démarrage pour être sûr que la colonne existe
-with app.app_context():
-    ensure_user_bureau_column()
+    return dict(
+        SITE_NAME=SITE_NAME, UI_BG_COLOR=UI_BG_COLOR, UI_TEXT_COLOR=UI_TEXT_COLOR,
+        REPORT_TITLE_COLOR=REPORT_TITLE_COLOR, BUREAU_NAME=BUREAU_NAME, BUREAU_LOGO_URL=BUREAU_LOGO_URL
+    )
 
 # ---------------------------------------------------------------------
 # Routes UI (propres)
 # ---------------------------------------------------------------------
-from sqlalchemy import case  # utilisé pour l'ordre d'affichage des rôles
-
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -415,16 +421,12 @@ def login():
         u = request.form.get("username")
         p = request.form.get("password")
         remember = True if request.form.get("remember") == "on" else False
-
         user = User.query.filter_by(username=u).first()
         if not user or not user.check_password(p):
             flash("Identifiants incorrects.")
             return render_template("login.html")
-
         login_user(user, remember=remember)
-        # Redirection selon le rôle
         return redirect(url_for("dashboard"))
-
     return render_template("login.html")
 
 @app.route("/logout")
@@ -432,17 +434,11 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("home"))
-    
+
 # ---------- Lecture des guides : renvoie du HTML à injecter en modale ----------
 @app.route("/guide/<audience>")
 @login_required
 def guide_read(audience):
-    """
-    Autorisations :
-      - maréchal : peut lire 'marechal'
-      - prévôt   : peut lire 'prevot' ET 'marechal'
-      - superadmin : peut lire tout (pas de lien spécifique dans la barre)
-    """
     role = getattr(current_user, "role", "")
     allowed = (
         (role == "marechal" and audience == "marechal") or
@@ -451,18 +447,13 @@ def guide_read(audience):
     )
     if not allowed:
         return "Non autorisé", 403
-
     g = Guide.query.filter_by(audience=audience).first()
     if not g:
         return "<em>Guide introuvable.</em>", 404
-
     html = render_markdown_safe(g.content)
-    # On renvoie juste le fragment HTML (le JS du template l’injecte dans la modale)
     return html
 
-# ---------------------------------------------------------------------
 # ---------- Routeur de tableaux de bord ----------
-# ---------------------------------------------------------------------
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -475,17 +466,31 @@ def dashboard():
         return redirect(url_for("rapport"))
 
 # ---------------------------------------------------------------------
-# ---------- Édition des guides (Super-admin uniquement) ----------
+# Administration simple (superadmin)
 # ---------------------------------------------------------------------
+@app.route("/admin/dashboard")
+@login_required
+def admin_dashboard():
+    if not is_superadmin():
+        abort(403)
+    return render_template_string("""
+    {% extends "base.html" %}{% block content %}
+    <h1>Tableau de bord — Superadmin</h1>
+    <ul>
+      <li><a href="{{ url_for('admin_users') }}">Gérer les utilisateurs</a></li>
+      <li><a href="{{ url_for('admin_guides') }}">Gérer les guides</a></li>
+      <li><a href="{{ url_for('prevot_dashboard') }}">Tableau de bord Prévôt</a></li>
+    </ul>
+    {% endblock %}
+    """)
+
 @app.route("/admin/guides", methods=["GET", "POST"])
 @login_required
 def admin_guides():
     if not is_superadmin():
         abort(403)
-
     gm = Guide.query.filter_by(audience="marechal").first()
     gp = Guide.query.filter_by(audience="prevot").first()
-
     if request.method == "POST":
         new_gm = request.form.get("content_marechal", "")
         new_gp = request.form.get("content_prevot", "")
@@ -498,19 +503,15 @@ def admin_guides():
         db.session.commit()
         flash("Guides enregistrés.")
         return redirect(url_for("admin_guides"))
-
     gm_html = render_markdown_safe(gm.content if gm else "")
     gp_html = render_markdown_safe(gp.content if gp else "")
-
     return render_template_string("""
 {% extends "base.html" %}{% block content %}
 <h1>Gérer les guides</h1>
 <p><em>(Édition réservée au Super-admin)</em></p>
-
 {% with msgs = get_flashed_messages() %}
   {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
 {% endwith %}
-
 <form method="post" style="display:grid;gap:1rem;grid-template-columns:1fr 1fr;align-items:start">
   <div>
     <h3>Guide maréchal (Markdown)</h3>
@@ -524,14 +525,11 @@ def admin_guides():
     <h4>Aperçu</h4>
     <div id="preview_prevot" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gp_html|safe }}</div>
   </div>
-
   <div style="grid-column:1/-1">
     <button type="submit">Enregistrer</button>
   </div>
 </form>
-
 <script>
-  // Aperçu “live” minimal : message disant que l'aperçu sera à jour après Enregistrer
   const pm = document.querySelector("textarea[name='content_marechal']");
   const pp = document.querySelector("textarea[name='content_prevot']");
   const vm = document.getElementById("preview_marechal");
@@ -542,18 +540,12 @@ def admin_guides():
 {% endblock %}
 """, gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
 
-# ---------------------------------------------------------------------
-# ---------- Gestion des utilisateurs (réservé superadmin) ----------
-# ---------------------------------------------------------------------
 @app.route("/admin/users", methods=["GET", "POST"], endpoint="admin_users")
 @login_required
 def admin_users():
     if not is_superadmin():
         abort(403)
-
-    # Création / suppression
     if request.method == "POST":
-        # Suppression multiple (cases cochées)
         to_delete = request.form.getlist("delete_user")
         if to_delete:
             for uid in to_delete:
@@ -563,13 +555,10 @@ def admin_users():
             db.session.commit()
             flash("Comptes supprimés.")
             return redirect(url_for("admin_users"))
-
-        # Création d’un nouvel utilisateur
         uname  = (request.form.get("username") or "").strip()
         pwd    = (request.form.get("password") or "").strip()
         role   = (request.form.get("role") or "marechal").strip()
         bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
-
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
         elif User.query.filter_by(username=uname).first():
@@ -581,105 +570,16 @@ def admin_users():
             db.session.commit()
             flash(f"Utilisateur {uname} ({role}, {bureau}) créé.")
         return redirect(url_for("admin_users"))
-
-    # Liste (superadmin caché) : prévôt en premier, puis maréchal, puis autres, tri alpha
-    role_order = case(
-        (User.role == "prevot", 0),
-        (User.role == "marechal", 1),
-        else_=2
-    )
     users = (
         User.query
         .filter(User.role != "superadmin")
-        .order_by(role_order, User.username.asc())
+        .order_by(User.username.asc())
         .all()
     )
-
-    return render_template_string("""
-{% extends "base.html" %}{% block content %}
-<h1>Gestion des utilisateurs</h1>
-
-{% with msgs = get_flashed_messages() %}
-  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
-{% endwith %}
-
-<h3>Créer un utilisateur</h3>
-<form method="post" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr 1fr auto;gap:.5rem;align-items:end;max-width:980px">
-  <div>
-    <label>Identifiant</label>
-    <input name="username" placeholder="ex: JeanDupont" required>
-  </div>
-  <div>
-    <label>Mot de passe</label>
-    <input name="password" type="password" required>
-  </div>
-  <div>
-    <label>Bureau</label>
-    <select name="bureau">
-      <option value="Armagnac & Comminges" selected>Armagnac & Comminges</option>
-    </select>
-  </div>
-  <div>
-    <label>Rôle</label>
-    <select name="role">
-      <option value="marechal" selected>maréchal</option>
-      <option value="prevot">prévôt</option>
-      <option value="superadmin">superadmin</option>
-    </select>
-  </div>
-  <button type="submit">Créer</button>
-</form>
-
-<h3 style="margin-top:1rem">Utilisateurs existants</h3>
-<form method="post">
-<table style="width:100%;max-width:980px;border-collapse:collapse">
-  <thead>
-    <tr>
-      <th></th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Identifiant</th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Bureau</th>
-      <th style="text-align:left;border-bottom:1px solid #ddd">Rôle</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for u in users %}
-      <tr>
-        <td><input type="checkbox" name="delete_user" value="{{ u.id }}"></td>
-        <td style="padding:.4rem 0">{{ u.username }}</td>
-        <td>{{ u.bureau or '—' }}</td>
-        <td>{{ u.role }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4"><em>Aucun utilisateur</em></td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-<button type="submit">Supprimer sélection</button>
-</form>
-{% endblock %}
-""", users=users)
+    return render_template("admin_users.html", users=users)
 
 # ---------------------------------------------------------------------
-# ---------- Tableau de bord Admin ----------
-# ---------------------------------------------------------------------
-@app.route("/admin/dashboard")
-@login_required
-def admin_dashboard():
-    if not is_superadmin():
-        abort(403)
-    return render_template_string("""
-{% extends "base.html" %}{% block content %}
-<h1>Tableau de bord — Admin</h1>
-<ul>
-  <li><a href="{{ url_for('admin_users') }}">Gérer les utilisateurs</a></li>
-  <li><a href="{{ url_for('admin_guides') }}">Gérer les guides</a></li>
-  <li><a href="{{ url_for('rapport') }}">Saisir un rapport</a></li>
-</ul>
-{% endblock %}
-""")
-
-# ---------------------------------------------------------------------
-# ---------- Tableau de bord Prévôt ----------
+# Tableau de bord Prévôt
 # ---------------------------------------------------------------------
 @app.route("/prevot/dashboard")
 @login_required
@@ -687,7 +587,6 @@ def prevot_dashboard():
     role = getattr(current_user, "role", "")
     if role not in ("prevot", "admin", "superadmin"):
         abort(403)
-
     return render_template_string("""
     {% extends "base.html" %}
     {% block content %}
@@ -703,176 +602,13 @@ def prevot_dashboard():
     {% endblock %}
     """)
 
-# ---------- API Brigands ----------
-@app.route("/api/brigands")
-def api_brigands():
-    brigands = Brigand.query.order_by(Brigand.name.asc()).all()
-    result = []
-    for b in brigands:
-        result.append({
-            "id": b.id,
-            "name": b.name,
-            "list": b.list,
-            "facts": b.facts,
-            "is_crown": b.is_crown,
-            "is_png": b.is_png,
-            "order": b.order
-        })
-    return jsonify(result)
-
-@app.route("/api/brigands", methods=["POST"])
-def create_brigand():
-    data = request.get_json()
-    if not data or "name" not in data:
-        return jsonify({"error": "Le nom est obligatoire"}), 400
-
-    brigand = Brigand(
-        name=data["name"].strip(),
-        list=data.get("list", "").strip(),
-        facts=data.get("facts", "").strip(),
-        is_crown=bool(data.get("is_crown")),
-        is_png=bool(data.get("is_png")),
-        order=data.get("order", "").strip()
-    )
-
-    try:
-        db.session.add(brigand)
-        db.session.commit()
-        return jsonify({"success": True, "id": brigand.id})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/brigands/search")
-def search_brigand_by_name():
-    name = request.args.get("name", "").strip()
-    if not name:
-        return jsonify({"error": "Nom IG manquant"}), 400
-
-    brigand = Brigand.query.filter_by(name=name).first()
-    if not brigand:
-        return jsonify({"error": "Brigand introuvable"}), 404
-
-    return jsonify({
-        "id": brigand.id,
-        "name": brigand.name,
-        "list": brigand.list,
-        "facts": brigand.facts,
-        "is_crown": brigand.is_crown,
-        "is_png": brigand.is_png,
-        "order": brigand.order
-    })
-
-@app.route("/api/brigands/<int:brigand_id>", methods=["PUT"])
-def update_brigand(brigand_id):
-    data = request.get_json()
-    brigand = Brigand.query.get(brigand_id)
-    if not brigand:
-        return jsonify({"error": "Brigand introuvable"}), 404
-
-    brigand.name = data.get("name", brigand.name).strip()
-    brigand.list = data.get("list", brigand.list).strip()
-    brigand.facts = data.get("facts", brigand.facts).strip()
-    brigand.is_crown = bool(data.get("is_crown"))
-    brigand.is_png = bool(data.get("is_png"))
-    brigand.order = data.get("order", brigand.order).strip()
-
-    try:
-        db.session.commit()
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/brigands/delete-by-name", methods=["POST"])
-def delete_brigands_by_name():
-    data = request.get_json()
-    names = data.get("names", [])
-    if not isinstance(names, list) or not names:
-        return jsonify({"error": "Liste de noms invalide"}), 400
-
-    deleted = []
-    for name in names:
-        brigand = Brigand.query.filter_by(name=name.strip()).first()
-        if brigand:
-            db.session.delete(brigand)
-            deleted.append(name)
-
-    try:
-        db.session.commit()
-        return jsonify({"success": True, "deleted": deleted})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-# ---------- API Organisations ----------
-@app.route("/api/organisations")
-def get_organisations():
-    organisations = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
-    result = []
-    for org in organisations:
-        result.append({
-            "id": org.id,
-            "nom_complet": org.nom_complet,
-            "nom_abrege": org.nom_abrege
-        })
-    return jsonify(result)
-
-@app.route("/api/organisations", methods=["POST"])
-def create_organisation():
-    data = request.get_json()
-    if not data or "nom_complet" not in data:
-        return jsonify({"error": "Le nom complet est obligatoire"}), 400
-
-    org = Organisation(
-        nom_complet=data["nom_complet"].strip(),
-        nom_abrege=(data.get("nom_abrege") or "").strip() or None
-    )
-    try:
-        db.session.add(org)
-        db.session.commit()
-        return jsonify({"success": True, "id": org.id})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/organisations/<int:org_id>", methods=["PUT"])
-def update_organisation(org_id):
-    data = request.get_json()
-    org = Organisation.query.get(org_id)
-    if not org:
-        return jsonify({"error": "Organisation introuvable"}), 404
-
-    org.nom_complet = data.get("nom_complet", org.nom_complet).strip()
-    org.nom_abrege = data.get("nom_abrege", org.nom_abrege).strip()
-
-    try:
-        db.session.commit()
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/organisations/<int:org_id>", methods=["DELETE"])
-def delete_organisation(org_id):
-    org = Organisation.query.get(org_id)
-    if not org:
-        return jsonify({"error": "Organisation introuvable"}), 404
-
-    try:
-        db.session.delete(org)
-        db.session.commit()
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
 # ---------------------------------------------------------------------
-# ---------- Interfaces prévôtales ----------
+# Interfaces prévôtales
 # ---------------------------------------------------------------------
 @app.route("/brigands")
 @login_required
 def brigands():
-    if current_user.role not in ["prevot", "admin"]:
+    if current_user.role not in ["prevot", "admin", "superadmin"]:
         abort(403)
     return render_template("brigands.html")
 
@@ -881,10 +617,7 @@ def brigands():
 def gestion_marechaux():
     if current_user.role != "prevot":
         abort(403)
-
     bureau_ac = "Armagnac & Comminges"
-
-    # Suppression
     if request.method == "POST" and request.form.getlist("delete_user"):
         to_delete = request.form.getlist("delete_user")
         for uid in to_delete:
@@ -894,12 +627,9 @@ def gestion_marechaux():
         db.session.commit()
         flash("Maréchaux A&C supprimés.")
         return redirect(url_for("gestion_marechaux"))
-
-    # Création
     if request.method == "POST" and not request.form.getlist("delete_user"):
         uname = (request.form.get("username") or "").strip()
         pwd   = (request.form.get("password") or "").strip()
-
         import re
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
@@ -914,15 +644,12 @@ def gestion_marechaux():
             db.session.commit()
             flash(f"Maréchal {uname} (A&C) créé.")
         return redirect(url_for("gestion_marechaux"))
-
-    # Liste des maréchaux A&C
     users = (
         User.query
         .filter_by(role="marechal", bureau=bureau_ac)
         .order_by(User.username.asc())
         .all()
     )
-
     return render_template("marechaux.html", users=users)
 
 def jour_actif():
@@ -937,20 +664,16 @@ def jour_actif():
 def rapports_du_jour():
     if current_user.role != "prevot":
         abort(403)
-
     jour = jour_actif()
     villages = Village.query.order_by(Village.name.asc()).all()
-
     rapports_faits = []
     rapports_manquants = []
-
     for village in villages:
         rapport = Report.query.filter_by(village=village.name, report_date=jour).first()
         if rapport:
             rapports_faits.append((village.name, rapport.id))
         else:
             rapports_manquants.append(village.name)
-
     return render_template("rapports_jour.html",
                            jour=jour,
                            faits=rapports_faits,
@@ -978,7 +701,7 @@ def tableau_gardes():
     return render_template_string("<h2>Tableau des gardes — à venir</h2>")
 
 # ---------------------------------------------------------------------
-# ---------- Formulaire Rapport Maréchal ----------
+# Formulaire Rapport Maréchal
 # ---------------------------------------------------------------------
 def get_villages_traite_today():
     today = date.today()
@@ -991,7 +714,6 @@ def rapport():
     villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
     blocked = is_blocked_now()
     jour_de_jeu = get_jour_de_jeu()
-
     def rerender():
         villages_traite_today = get_villages_traite_today()
         return render_template(
@@ -1002,12 +724,10 @@ def rapport():
             villages_traite_today=villages_traite_today,
             jour_de_jeu=jour_de_jeu
         )
-
     if request.method == "POST":
         if blocked:
             flash("Dépôt bloqué.")
             return rerender()
-
         garde_val  = request.form.get("tour_de_garde", "")
         village    = (request.form.get("village") or "").strip()
         mv         = (request.form.get("mem_visions") or "").strip()
@@ -1018,7 +738,6 @@ def rapport():
         ag         = (request.form.get("armies_groups") or "").strip()
         villagers  = (request.form.get("villagers") or "").strip()
         moves      = (request.form.get("moves") or "").strip()
-
         errors = []
         if garde_val not in ("oui", "non"):
             errors.append("Indiquez si la garde a été effectuée (oui / non).")
@@ -1030,20 +749,16 @@ def rapport():
             errors.append("Renseignez la liste des villageois recensés en mairie.")
         if not ag.strip():
             errors.append("Renseignez les armées et groupes présents hors de la ville.")
-
         if errors:
             for e in errors:
                 flash(e)
             return rerender()
-
         tour = (garde_val == "oui")
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
-
         bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, foreigners, acp, ag, villagers, moves)
-
         r = Report(
             report_date=jour_de_jeu,
             user_id=current_user.id,
@@ -1061,16 +776,8 @@ def rapport():
         )
         db.session.add(r)
         db.session.commit()
-
         date_str = jour_de_jeu.strftime("%d %B %Y") if jour_de_jeu else "Date inconnue"
-        return render_template(
-            "report_result.html",
-            bbcode=bb,
-            village=village,
-            date=date_str
-        )
-
-    # GET : afficher le formulaire
+        return render_template("report_result.html", bbcode=bb, village=village, date=date_str)
     villages_traite_today = get_villages_traite_today()
     return render_template(
         "rapport.html",
@@ -1085,10 +792,260 @@ def rapport():
 @login_required
 def voir_rapport(rapport_id):
     rapport = Report.query.get_or_404(rapport_id)
-    if current_user.role not in ["prevot", "marechal"]:
+    if current_user.role not in ["prevot", "marechal", "superadmin", "admin"]:
         abort(403)
     return render_template("rapport_lecture.html", rapport=rapport)
 
+# ---------------------------------------------------------------------
+# API sécurisées (login + rôle prévôt/admin/superadmin)
+# ---------------------------------------------------------------------
+def org_display_label(org: Organisation):
+    if not org:
+        return ""
+    if org.nom_abrege and org.nom_abrege.strip():
+        return org.nom_abrege.strip()
+    return org.nom_complet.strip()
+
+def brigand_to_json(b: Brigand):
+    return {
+        "id": b.id,
+        "name": b.name,
+        "list": b.list or "",
+        "facts": b.facts or "",
+        "is_crown": bool(b.is_crown),
+        "is_png": bool(b.is_png),
+        # Compat: on renvoie à la fois l'ID et un libellé texte
+        "order_id": b.order_id,
+        "order": org_display_label(b.organisation) if b.organisation else (b.order or ""),
+        "organisation": (
+            {
+                "id": b.organisation.id,
+                "nom_complet": b.organisation.nom_complet,
+                "nom_abrege": b.organisation.nom_abrege
+            } if b.organisation else None
+        )
+    }
+
+@app.route("/api/brigands")
+@login_required
+def api_brigands():
+    require_prevot_or_admin()
+    brigands = Brigand.query.order_by(Brigand.name.asc()).all()
+    return jsonify([brigand_to_json(b) for b in brigands])
+
+@app.route("/api/brigands", methods=["POST"])
+@login_required
+def create_brigand():
+    require_prevot_or_admin()
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Le nom IG est obligatoire"}), 400
+
+    # Gestion de la relation organisation (ordre)
+    order_id = data.get("order_id")
+    if order_id in ("", None):
+        order_id = None
+    else:
+        try:
+            order_id = int(order_id)
+        except Exception:
+            order_id = None
+
+    # Compatibilité legacy: si 'order' (texte) est fourni, tenter de résoudre vers une org
+    if order_id is None and (data.get("order") or "").strip():
+        legacy = (data.get("order") or "").strip()
+        org = Organisation.query.filter(
+            (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
+        ).first()
+        order_id = org.id if org else None
+
+    brigand = Brigand(
+        name=name,
+        list=(data.get("list") or "").strip(),
+        facts=(data.get("facts") or "").strip(),
+        is_crown=bool(data.get("is_crown")),
+        is_png=bool(data.get("is_png")),
+        order_id=order_id
+    )
+
+    try:
+        db.session.add(brigand)
+        db.session.commit()
+        return jsonify({"success": True, "id": brigand.id, "brigand": brigand_to_json(brigand)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/brigands/search")
+@login_required
+def search_brigand_by_name():
+    require_prevot_or_admin()
+    name = (request.query_string.decode() and request.args.get("name", "") or "").strip()
+    if not name:
+        return jsonify({"error": "Nom IG manquant"}), 400
+    brigand = Brigand.query.filter_by(name=name).first()
+    if not brigand:
+        return jsonify({"error": "Brigand introuvable"}), 404
+    return jsonify(brigand_to_json(brigand))
+
+@app.route("/api/brigands/<int:brigand_id>", methods=["PUT"])
+@login_required
+def update_brigand(brigand_id):
+    require_prevot_or_admin()
+    data = request.get_json() or {}
+    brigand = Brigand.query.get(brigand_id)
+    if not brigand:
+        return jsonify({"error": "Brigand introuvable"}), 404
+
+    # Champs libres (tous facultatifs)
+    if "name" in data:
+        new_name = (data.get("name") or "").strip()
+        if not new_name:
+            return jsonify({"error": "Le nom IG ne peut pas être vide"}), 400
+        brigand.name = new_name
+
+    if "list" in data:
+        brigand.list = (data.get("list") or "").strip()
+
+    if "facts" in data:
+        brigand.facts = (data.get("facts") or "").strip()
+
+    if "is_crown" in data:
+        brigand.is_crown = bool(data.get("is_crown"))
+
+    if "is_png" in data:
+        brigand.is_png = bool(data.get("is_png"))
+
+    # Organisation: privilégie order_id, sinon tentative de résolution depuis 'order' texte
+    order_id = data.get("order_id", None)
+    if order_id in ("", None):
+        resolved_id = None
+    else:
+        try:
+            resolved_id = int(order_id)
+        except Exception:
+            resolved_id = None
+
+    if resolved_id is None and (data.get("order") or "").strip():
+        legacy = (data.get("order") or "").strip()
+        org = Organisation.query.filter(
+            (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
+        ).first()
+        resolved_id = org.id if org else None
+
+    if "order_id" in data or "order" in data:
+        brigand.order_id = resolved_id
+
+    try:
+        db.session.commit()
+        return jsonify({"success": True, "brigand": brigand_to_json(brigand)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/brigands/delete-by-name", methods=["POST"])
+@login_required
+def delete_brigands_by_name():
+    require_prevot_or_admin()
+    data = request.get_json() or {}
+    names = data.get("names", [])
+    if not isinstance(names, list) or not names:
+        return jsonify({"error": "Liste de noms invalide"}), 400
+    deleted = []
+    for name in names:
+        b = Brigand.query.filter_by(name=(name or "").strip()).first()
+        if b:
+            db.session.delete(b)
+            deleted.append(name)
+    try:
+        db.session.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# ---------- API Organisations ----------
+@app.route("/api/organisations")
+@login_required
+def get_organisations():
+    require_prevot_or_admin()
+    organisations = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
+    result = []
+    for org in organisations:
+        result.append({
+            "id": org.id,
+            "nom_complet": org.nom_complet,
+            "nom_abrege": org.nom_abrege
+        })
+    return jsonify(result)
+
+@app.route("/api/organisations", methods=["POST"])
+@login_required
+def create_organisation():
+    require_prevot_or_admin()
+    data = request.get_json() or {}
+    if "nom_complet" not in data or not (data.get("nom_complet") or "").strip():
+        return jsonify({"error": "Le nom complet est obligatoire"}), 400
+    org = Organisation(
+        nom_complet=(data["nom_complet"] or "").strip(),
+        nom_abrege=((data.get("nom_abrege") or "").strip() or None)
+    )
+    try:
+        db.session.add(org)
+        db.session.commit()
+        return jsonify({"success": True, "id": org.id, "organisation": {
+            "id": org.id, "nom_complet": org.nom_complet, "nom_abrege": org.nom_abrege
+        }})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/organisations/<int:org_id>", methods=["PUT"])
+@login_required
+def update_organisation(org_id):
+    require_prevot_or_admin()
+    data = request.get_json() or {}
+    org = Organisation.query.get(org_id)
+    if not org:
+        return jsonify({"error": "Organisation introuvable"}), 404
+    if "nom_complet" in data:
+        nc = (data.get("nom_complet") or "").strip()
+        if not nc:
+            return jsonify({"error": "Le nom complet ne peut pas être vide"}), 400
+        org.nom_complet = nc
+    if "nom_abrege" in data:
+        na = (data.get("nom_abrege") or "").strip()
+        org.nom_abrege = na or None
+    try:
+        db.session.commit()
+        return jsonify({"success": True, "organisation": {
+            "id": org.id, "nom_complet": org.nom_complet, "nom_abrege": org.nom_abrege
+        }})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/organisations/<int:org_id>", methods=["DELETE"])
+@login_required
+def delete_organisation(org_id):
+    require_prevot_or_admin()
+    org = Organisation.query.get(org_id)
+    if not org:
+        return jsonify({"error": "Organisation introuvable"}), 404
+    try:
+        db.session.delete(org)
+        # Optionnel: nettoyer les brigands pointant vers cette org
+        for b in Brigand.query.filter_by(order_id=org.id).all():
+            b.order_id = None
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------------------
+# Lancement
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
