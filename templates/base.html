@@ -6,19 +6,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-      body{background:{{ UI_BG_COLOR }};color:{{ UI_TEXT_COLOR }};font-family:Georgia,serif;margin:0}
-      header{display:flex;gap:.6rem;align-items:center;padding:.6rem .8rem;background:#00000012}
-      header img{height:48px}
-      header a{color:inherit;text-decoration:none}
-      header a:hover{text-decoration:underline}
-      main{padding:.8rem 1rem}
+      body {
+        background: {{ UI_BG_COLOR }};
+        color: {{ UI_TEXT_COLOR }};
+        font-family: Georgia, serif;
+        margin: 0;
+      }
+      header {
+        display: flex;
+        gap: .6rem;
+        align-items: center;
+        padding: .6rem .8rem;
+        background: #00000012;
+      }
+      header img {
+        height: 48px;
+      }
+      header a {
+        color: inherit;
+        text-decoration: none;
+      }
+      header a:hover {
+        text-decoration: underline;
+      }
+      main {
+        padding: .8rem 1rem;
+      }
+
       /* Modale */
-      .modal-backdrop{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:999}
-      .modal{max-width:min(900px,92vw);max-height:85vh;overflow:auto;background:#fff;color:#222;border-radius:10px;padding:16px 18px;box-shadow:0 10px 30px #0006}
-      .modal header{background:none;gap:.4rem; padding:0; margin:0 0 .4rem 0}
-      .modal .close{margin-left:auto;cursor:pointer;font-weight:bold}
-      .guide-title{font-size:18px;margin:0}
-      .hidden{display:none}
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: #0009;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+      .modal {
+        max-width: min(900px, 92vw);
+        max-height: 85vh;
+        overflow: auto;
+        background: #fff;
+        color: #222;
+        border-radius: 10px;
+        padding: 16px 18px;
+        box-shadow: 0 10px 30px #0006;
+      }
+      .modal header {
+        background: none;
+        gap: .4rem;
+        padding: 0;
+        margin: 0 0 .4rem 0;
+      }
+      .modal .close {
+        margin-left: auto;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .guide-title {
+        font-size: 18px;
+        margin: 0;
+      }
+      .hidden {
+        display: none;
+      }
 
       /* Bloc : Style des villages désactivés */
       .village-option.disabled {
@@ -28,37 +80,35 @@
     </style>
   </head>
 
-  <!-- ✅ Ajout de la classe dynamique ici -->
   <body class="{{ page_class|default('') }}">
 
-<header>
-  <span class="site-title">Les Douanes du Sud</span>
+    <header>
+      <span class="site-title">Les Douanes du Sud</span>
 
-  {% if current_user.is_authenticated %}
-    {% if current_user.bureau == 'Armagnac & Comminges' %}
-      <div id="blason" style="display:flex; align-items:center; gap:10px;">
-        <img src="{{ url_for('static', filename='images/blason-ac.png') }}" alt="Blason Armagnac & Comminges" height="48">
-        <span>Armagnac & Comminges</span>
-      </div>
-    {% endif %}
+      {% if current_user.is_authenticated %}
+        {% if current_user.bureau == 'Armagnac & Comminges' %}
+          <div id="blason" style="display: flex; align-items: center;">
+            <img src="https://nsm09.casimages.com/img/2025/09/21//iHraVb-Etendard-AC.png" alt="Blason Armagnac & Comminges" height="48">
+          </div>
+        {% endif %}
 
-    {% if current_user.role in ['superadmin', 'prevot'] %}
-      | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
-    {% endif %}
-    | <a href="{{ url_for('rapport') }}">Rapport</a>
+        {% if current_user.role in ['superadmin', 'prevot'] %}
+          | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
+        {% endif %}
+        | <a href="{{ url_for('rapport') }}">Rapport</a>
 
-    {% if current_user.role == 'marechal' %}
-      | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
-    {% elif current_user.role == 'prevot' %}
-      | <a href="#" data-guide="prevot">📘 Guide prévôt</a>
-      | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
-    {% endif %}
+        {% if current_user.role == 'marechal' %}
+          | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
+        {% elif current_user.role == 'prevot' %}
+          | <a href="#" data-guide="prevot">📘 Guide prévôt</a>
+          | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
+        {% endif %}
 
-    | <a href="{{ url_for('logout') }}">Déconnexion</a>
-  {% else %}
-    | <a href="{{ url_for('login') }}">Connexion</a>
-  {% endif %}
-</header>
+        | <a href="{{ url_for('logout') }}">Déconnexion</a>
+      {% else %}
+        | <a href="{{ url_for('login') }}">Connexion</a>
+      {% endif %}
+    </header>
 
     <main>
       {% with messages = get_flashed_messages() %}
@@ -97,14 +147,14 @@
         const titleEl  = document.getElementById('guide-title');
         const closeBtn = document.getElementById('guide-close');
 
-        function openModal(audience, label){
+        function openModal(audience, label) {
           titleEl.textContent = label;
           content.innerHTML = "Chargement…";
           backdrop.style.display = "flex";
 
-          fetch(`/guide/${audience}`, {credentials:'same-origin'})
+          fetch(`/guide/${audience}`, { credentials: 'same-origin' })
             .then(r => {
-              if(!r.ok) throw new Error("HTTP " + r.status);
+              if (!r.ok) throw new Error("HTTP " + r.status);
               return r.text();
             })
             .then(html => { content.innerHTML = html; })
@@ -113,14 +163,14 @@
             });
         }
 
-        function closeModal(){
+        function closeModal() {
           backdrop.style.display = "none";
           content.innerHTML = "";
         }
 
         document.addEventListener('click', (e) => {
           const link = e.target.closest('[data-guide]');
-          if(link){
+          if (link) {
             e.preventDefault();
             const audience = link.getAttribute('data-guide');
             const label = audience === 'prevot' ? 'Guide prévôt' : 'Guide maréchal';
@@ -130,10 +180,10 @@
 
         closeBtn.addEventListener('click', closeModal);
         backdrop.addEventListener('click', (e) => {
-          if(e.target === backdrop) closeModal();
+          if (e.target === backdrop) closeModal();
         });
         document.addEventListener('keydown', (e) => {
-          if(e.key === 'Escape' && backdrop.style.display === 'flex') closeModal();
+          if (e.key === 'Escape' && backdrop.style.display === 'flex') closeModal();
         });
       })();
     </script>
