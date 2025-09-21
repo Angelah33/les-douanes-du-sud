@@ -95,7 +95,7 @@
         {% if current_user.role in ['superadmin', 'prevot'] %}
           | <a href="{{ url_for('dashboard') }}">Tableau de bord</a>
         {% endif %}
-        | <a href="{{ url_for('rapport') }}">Rapport</a>
+        | <a href="{{ url_for('rapport') }}">📜 Rapport</a>
 
         {% if current_user.role == 'marechal' %}
           | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
@@ -104,9 +104,9 @@
           | <a href="#" data-guide="marechal">📘 Guide maréchal</a>
         {% endif %}
 
-        | <a href="{{ url_for('logout') }}">Déconnexion</a>
+        | <a href="{{ url_for('logout') }}">🚪 Déconnexion</a>
       {% else %}
-        | <a href="{{ url_for('login') }}">Connexion</a>
+        | <a href="{{ url_for('login') }}">🚪 Connexion</a>
       {% endif %}
     </header>
 
@@ -124,10 +124,12 @@
       {% block content %}{% endblock %}
     </main>
 
-    <footer>
-      <hr>
-      <div>Pour toute information ou problème, contactez IG : Agatha.isabella</div>
-    </footer>
+<footer>
+  <hr>
+  <div style="margin-left: 1rem;">
+    Pour toute information ou problème, contactez IG : Agatha.isabella
+  </div>
+</footer>
 
     <!-- Modale Guides -->
     <div id="guide-backdrop" class="modal-backdrop">
