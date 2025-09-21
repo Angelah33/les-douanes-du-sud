@@ -1,4 +1,4 @@
-// =========== Constantes et etat global ===========
+// =========== Etat global ===========
 
 const PAGE_SIZE = 50;
 
