@@ -785,20 +785,6 @@ async function loadBrigands() {
   });
 }
 
-function afficherBlasonSiConnecte(user) {
-  // Verifie que l’utilisateur est connecte ET qu’il appartient bien au bureau A&C
-  if (user.isLoggedIn && user.bureau === "Armagnac & Comminges") {
-    const blasonDiv = document.getElementById("blason");
-    if (blasonDiv) {
-      blasonDiv.innerHTML = `
-        <img src="https://i.imgur.com/Tlkcjgy.png" alt="Blason Armagnac & Comminges" height="48">
-        <b>Armagnac & Comminges</b>
-      `;
-      blasonDiv.style.display = "flex";
-    }
-  }
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
   initDOM();
   bindEvents();
@@ -806,7 +792,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadOrganisations();
   await loadBrigands();
   await loadOrdersTable();
-
-  // Ajout : affichage du blason si connecte
-  afficherBlasonSiConnecte(window.user);
 });
