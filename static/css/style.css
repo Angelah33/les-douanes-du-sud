@@ -11,8 +11,7 @@
 
 /* Thème brigands clair */
 body.brigands {
-  --bg: #fdfdf6;
-  --card: #C6AF7B;
+  --card: --card: #EDE2C9;
   --muted: #7A451E;
   --text: #7A451E;
   --border: #bfa77a;
