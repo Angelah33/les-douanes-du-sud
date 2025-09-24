@@ -1,5 +1,6 @@
 :root {
-  --bg: #fdfdfd;
+  /* Ces variables sont surchargées dynamiquement par base.html */
+  /* --bg est défini via UI_BG_COLOR dans main.py */
   --card: #ffffff;
   --muted: #555;
   --text: #222;
@@ -95,7 +96,9 @@ label {
   font-size: .9rem;
 }
 
-input[type="text"], select, textarea {
+input[type="text"],
+select,
+textarea {
   background: #fff;
   color: var(--text);
   border: 1px solid var(--border);
@@ -207,7 +210,7 @@ body.brigands .tab:hover {
 }
 
 body.brigands .tab.active {
-  background: #5a3e2b;   /* marron foncé cohérent avec boutons brigand */
+  background: #5a3e2b;
   color: #fff;
   border-color: #5a3e2b;
 }
@@ -226,8 +229,12 @@ body.brigands .tab.active {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ========================================== */
@@ -239,7 +246,8 @@ body.brigands .tab.active {
   border: 1px solid var(--border);
 }
 
-.table th, .table td {
+.table th,
+.table td {
   padding: .6rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
@@ -304,6 +312,7 @@ body.brigands .pager .page.active {
   .grid {
     grid-template-columns: 1fr;
   }
+
   .orders-layout {
     grid-template-columns: 1fr;
   }
@@ -312,7 +321,7 @@ body.brigands .pager .page.active {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  background: rgba(0, 0, 0, .55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,7 +367,24 @@ body.brigands .pager .page.active {
 }
 
 /* Harmonisation des tags */
-.tag.orange { background: #fff3e0; border-color: #ffb070; color: #b35400; }
-.tag.indigo { background: #f0f0ff; border-color: #a8a5ff; color: #3a2fa0; }
-.tag.red { background: #ffeaea; border-color: #ff8b8b; color: #a00; }
-.tag.darkred
+.tag.orange {
+  background: #fff3e0;
+  border-color: #ffb070;
+  color: #b35400;
+}
+
+.tag.indigo {
+  background: #f0f0ff;
+  border-color: #a8a5ff;
+  color: #3a2fa0;
+}
+
+.tag.red {
+  background: #ffeaea;
+  border-color: #ff8b8b;
+  color: #a00;
+}
+
+.tag.darkred {
+  /* à compléter si nécessaire */
+}
