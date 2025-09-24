@@ -227,3 +227,27 @@ async function reloadAll() {
   const [brigands, orders] = await Promise.all([
     apiGetBrigands(),
     apiGetOrders(),
+  ]);
+
+  // Détection des brigands invalides
+  const brigandsInvalides = brigands.filter(b =>
+    !b.name || !b.list || b.list.trim() === ""
+  );
+
+  if (brigandsInvalides.length > 0) {
+    console.warn("⚠️ Brigands invalides détectés :", brigandsInvalides.map(b => b.name));
+    DOM.message.innerHTML = `
+      <div class="error">
+        ⚠️ ${brigandsInvalides.length} brigand(s) mal renseigné(s) détecté(s).<br>
+        Consultez la console pour les noms.<br>
+        Supprimez-les via la modale une fois la page réparée.
+      </div>
+    `;
+  }
+
+  // Affichage des onglets et formulaires
+  renderTabs(brigands, orders);
+  renderFormCreate(brigands, orders);
+  renderFormEdit(brigands, orders);
+  renderFormDelete(brigands);
+}
