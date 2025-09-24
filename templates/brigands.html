@@ -2,10 +2,13 @@
 {% set page_class = "brigands" %}
 {% block content %}
 
-  <h1>Gestion des brigands</h1>
+<h1>Gestion des brigands</h1>
+
+<!-- Message de retour -->
+<div id="message" class="message-area"></div>
 
 <main class="container">
-  <!-- Bloc création -->
+  <!-- Bloc principal : Création / Modification / Suppression -->
   <section class="card">
     <h2>Création d’un brigand</h2>
     <form id="createForm" class="grid">
@@ -15,13 +18,20 @@
       </div>
 
       <div class="field">
-        <label for="primaryList">Liste principale</label>
+        <label for="primaryList">Listes principales</label>
         <select id="primaryList" name="list">
           <option value="" selected>Aucune</option>
           <option value="surveillance">Liste de surveillance</option>
           <option value="noire">Liste noire</option>
           <option value="hors">Liste noire hors A&C</option>
           <option value="archives">Archives</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="orderSelect">Organisation brigande</label>
+        <select id="orderSelect" name="order_id">
+          <option value="">Aucune</option>
         </select>
       </div>
 
@@ -37,38 +47,27 @@
         <label><input type="checkbox" id="isPNG" name="is_png" /> PNG</label>
       </div>
 
-      <div class="field">
-        <label for="orderSelect">Organisation brigande</label>
-        <!-- ⚠️ Correction : on utilise order_id -->
-        <select id="orderSelect" name="order_id">
-          <option value="">Aucune</option>
-          <!-- rempli dynamiquement par JS avec les IDs -->
-        </select>
-      </div>
-
       <div class="actions">
         <button type="submit" class="btn brigand">Ajouter</button>
       </div>
     </form>
-  </section>
 
-  <!-- Bloc modification/suppression -->
-  <section class="card">
-    <h2>Modification / Suppression d’un brigand</h2>
+    <br><h3>Modifier un brigand</h3>
     <form id="editSearchForm" class="grid">
       <div class="field" style="max-width: 300px;">
-        <label for="editSearch">Nom IG à modifier</label>
+        <label for="editSearch">Nom IG</label>
         <input type="text" id="editSearch" placeholder="Ex: Bidule" />
       </div>
       <div class="actions" style="max-width: 300px;">
-        <button type="button" class="btn brigand">Rechercher</button>
+        <button type="button" class="btn brigand">Modifier</button>
       </div>
     </form>
 
+    <br><h3>Supprimer un ou plusieurs brigands</h3>
     <form id="deleteForm" class="grid">
-      <div class="field" style="max-width: 300px;">
-        <label for="deleteNames">Supprimer brigands (un par ligne)</label>
-        <textarea id="deleteNames" rows="4" placeholder="Ex:\nBidule\nMachin\nTrucmuche"></textarea>
+      <div class="field" style="max-width: 400px;">
+        <label for="deleteNames">Supprimer un ou plusieurs brigands (séparés par un ;)</label>
+        <textarea id="deleteNames" rows="4" placeholder="Ex: Bidule;Machin;Trucmuche"></textarea>
       </div>
       <div class="actions" style="max-width: 300px;">
         <button type="submit" class="btn brigand">Supprimer</button>
@@ -100,10 +99,8 @@
     </div>
   </section>
 
-  <!-- Ligne de séparation -->
   <hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
 
-  <!-- Titre -->
   <h4>Membres par organisation</h4>
   <div id="ordersMembers"></div>
 
@@ -134,22 +131,50 @@
   </section>
 </main>
 
-<!-- Modal d’édition -->
+<!-- Modale d’édition harmonisée -->
 <div id="modal" class="modal hidden" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
-      <h3>Modifier l’entrée</h3>
+      <h3>Modifier un brigand</h3>
       <button class="close" id="closeModal" aria-label="Fermer">×</button>
     </div>
     <form id="editForm" class="grid">
       <input type="hidden" id="editId" name="id" />
-      <div class="field"><label for="editName">Nom IG</label><input type="text" id="editName" name="name" required /></div>
-      <div class="field"><label for="editPrimary">Liste principale</label><select id="editPrimary" name="list" required></select></div>
-      <div class="field span-2"><label for="editFacts">Faits reprochés</label><textarea id="editFacts" name="facts" rows="3"></textarea></div>
-      <div class="field check"><label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label></div>
-      <div class="field check"><label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label></div>
-      <!-- Correction : on utilise order_id -->
-      <div class="field"><label for="editOrder">Organisation brigande</label><select id="editOrder" name="order_id"></select></div>
+      <div class="field">
+        <label for="editName">Nom IG</label>
+        <input type="text" id="editName" name="name" required />
+      </div>
+
+      <div class="field">
+        <label for="editPrimary">Listes principales</label>
+        <select id="editPrimary" name="list">
+          <option value="">Aucune</option>
+          <option value="surveillance">Liste de surveillance</option>
+          <option value="noire">Liste noire</option>
+          <option value="hors">Liste noire hors A&C</option>
+          <option value="archives">Archives</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="editOrder">Organisation brigande</label>
+        <select id="editOrder" name="order_id">
+          <option value="">Aucune</option>
+        </select>
+      </div>
+
+      <div class="field span-2">
+        <label for="editFacts">Faits reprochés</label>
+        <textarea id="editFacts" name="facts" rows="3"></textarea>
+      </div>
+
+      <div class="field check">
+        <label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label>
+      </div>
+      <div class="field check">
+        <label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label>
+      </div>
+
       <div class="actions">
         <button type="submit" class="btn primary">Valider</button>
         <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>
@@ -159,8 +184,7 @@
   </div>
 </div>
 
-<!-- Liens vers les fichiers statiques -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
-{% endblock %}
+{% end
