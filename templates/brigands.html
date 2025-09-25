@@ -2,190 +2,185 @@
 {% set page_class = "brigands" %}
 {% block content %}
 
-<div class="container">
-  <div class="card">
-<h1>Gestion des brigands</h1>
+<div class="container" style="background-color: transparent;">
+  <h1>Gestion des brigands</h1>
 
-<!-- Message de retour -->
-<div id="message" class="message-area"></div>
+  <!-- Message de retour -->
+  <div id="message" class="message-area"></div>
 
-<main class="container">
-  <!-- Bloc principal : Création / Modification / Suppression -->
-  <section class="card">
-    <h2>Création d’un brigand</h2>
-    <form id="createForm" class="grid">
-      <div class="field">
-        <label for="name">Nom IG</label>
-        <input type="text" id="name" name="name" required placeholder="Ex: Bidule" />
-      </div>
+  <main class="container">
+    <!-- Bloc principal : Création / Modification / Suppression -->
+    <section class="brigand-form">
+      <h2>Création d’un brigand</h2>
+      <form id="createForm" class="grid">
+        <div class="field">
+          <label for="name">Nom IG</label>
+          <input type="text" id="name" name="name" required placeholder="Ex: Bidule" />
+        </div>
 
-      <div class="field">
-        <label for="primaryList">Listes principales</label>
-        <select id="primaryList" name="list">
-          <option value="" selected>Aucune</option>
-          <option value="surveillance">Liste de surveillance</option>
-          <option value="noire">Liste noire</option>
-          <option value="hors">Liste noire hors A&C</option>
-          <option value="archives">Archives</option>
-        </select>
-      </div>
+        <div class="field">
+          <label for="primaryList">Listes principales</label>
+          <select id="primaryList" name="list">
+            <option value="" selected>Aucune</option>
+            <option value="surveillance">Liste de surveillance</option>
+            <option value="noire">Liste noire</option>
+            <option value="hors">Liste noire hors A&C</option>
+            <option value="archives">Archives</option>
+          </select>
+        </div>
 
-      <div class="field">
-        <label for="orderSelect">Organisation brigande</label>
-        <select id="orderSelect" name="order_id">
-          <option value="">Aucune</option>
-        </select>
-      </div>
+        <div class="field">
+          <label for="orderSelect">Organisation brigande</label>
+          <select id="orderSelect" name="order_id">
+            <option value="">Aucune</option>
+          </select>
+        </div>
 
-      <div class="field span-2">
-        <label for="facts">Faits reprochés</label>
-        <textarea id="facts" name="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
-      </div>
+        <div class="field span-2">
+          <label for="facts">Faits reprochés</label>
+          <textarea id="facts" name="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
+        </div>
 
-      <div class="field check">
-        <label><input type="checkbox" id="isCrown" name="is_crown" /> Recherché par la couronne</label>
-      </div>
-      <div class="field check">
-        <label><input type="checkbox" id="isPNG" name="is_png" /> PNG</label>
-      </div>
+        <div class="field check">
+          <label><input type="checkbox" id="isCrown" name="is_crown" /> Recherché par la couronne</label>
+        </div>
+        <div class="field check">
+          <label><input type="checkbox" id="isPNG" name="is_png" /> PNG</label>
+        </div>
 
-      <div class="actions">
-        <button type="submit" class="btn brigand">Ajouter</button>
-      </div>
-    </form>
+        <div class="actions">
+          <button type="submit" class="btn brigand">Ajouter</button>
+        </div>
+      </form>
 
-    <br><h3>Modifier un brigand</h3>
-    <form id="editSearchForm" class="grid">
-      <div class="field" style="max-width: 300px;">
-        <label for="editSearch">Nom IG</label>
-        <input type="text" id="editSearch" placeholder="Ex: Bidule" />
-      </div>
-      <div class="actions" style="max-width: 300px;">
-        <button type="button" class="btn brigand">Modifier</button>
-      </div>
-    </form>
+      <br><h3>Modifier un brigand</h3>
+      <form id="editSearchForm" class="grid">
+        <div class="field" style="max-width: 300px;">
+          <label for="editSearch">Nom IG</label>
+          <input type="text" id="editSearch" placeholder="Ex: Bidule" />
+        </div>
+        <div class="actions" style="max-width: 300px;">
+          <button type="button" class="btn brigand">Modifier</button>
+        </div>
+      </form>
 
-    <br><h3>Supprimer un ou plusieurs brigands</h3>
-    <form id="deleteForm" class="grid">
-      <div class="field" style="max-width: 400px;">
-        <label for="deleteNames">Supprimer un ou plusieurs brigands (séparés par un ;)</label>
-        <textarea id="deleteNames" rows="4" placeholder="Ex: Bidule;Machin;Trucmuche"></textarea>
-      </div>
-      <div class="actions" style="max-width: 300px;">
-        <button type="submit" class="btn brigand">Supprimer</button>
-      </div>
-    </form>
-  </section>
+      <br><h3>Supprimer un ou plusieurs brigands</h3>
+      <form id="deleteForm" class="grid">
+        <div class="field" style="max-width: 400px;">
+          <label for="deleteNames">Supprimer un ou plusieurs brigands (séparés par un ;)</label>
+          <textarea id="deleteNames" rows="4" placeholder="Ex: Bidule;Machin;Trucmuche"></textarea>
+        </div>
+        <div class="actions" style="max-width: 300px;">
+          <button type="submit" class="btn brigand">Supprimer</button>
+        </div>
+      </form>
+    </section>
 
-  <!-- Bloc organisations brigandes -->
-  <section class="card">
-    <h2>Gérer les organisations brigandes</h2>
-    <div class="orders-layout">
-      <div class="orders-manage">
-        <h4>Ajouter une organisation</h4>
-        <form id="orderForm" class="grid">
-          <div class="field">
-            <label for="orderName">Nom complet</label>
-            <input type="text" id="orderName" name="nom_complet" required />
-          </div>
-          <div class="field">
-            <label for="orderShort">Nom abrégé</label>
-            <input type="text" id="orderShort" name="nom_abrege" />
-          </div>
-          <div class="actions">
-            <button class="btn brigand" type="submit">Ajouter</button>
-          </div>
-        </form>
-        <div id="ordersTable"></div>
+    <!-- Bloc organisations brigandes -->
+    <section class="brigand-form">
+      <h2>Gérer les organisations brigandes</h2>
+      <div class="orders-layout">
+        <div class="orders-manage">
+          <h4>Ajouter une organisation</h4>
+          <form id="orderForm" class="grid">
+            <div class="field">
+              <label for="orderName">Nom complet</label>
+              <input type="text" id="orderName" name="nom_complet" required />
+            </div>
+            <div class="field">
+              <label for="orderShort">Nom abrégé</label>
+              <input type="text" id="orderShort" name="nom_abrege" />
+            </div>
+            <div class="actions">
+              <button class="btn brigand" type="submit">Ajouter</button>
+            </div>
+          </form>
+          <div id="ordersTable"></div>
+        </div>
       </div>
+    </section>
+
+    <hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
+
+    <h4>Membres par organisation</h4>
+    <div id="ordersMembers"></div>
+
+    <!-- Onglets -->
+    <div class="tabs">
+      <button class="tab active" data-tab="principales">Listes principales</button>
+      <button class="tab" data-tab="couronne-png">Couronne & PNG</button>
+      <button class="tab" data-tab="organisations">Organisations brigandes</button>
     </div>
-  </section>
 
-  <hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
+    <!-- Listes principales -->
+    <section id="tab-principales" class="tabpane active">
+      <section class="card"><h3>Liste noire</h3><div id="table-noire"></div></section>
+      <section class="card"><h3>Liste de surveillance</h3><div id="table-surveillance"></div></section>
+      <section class="card"><h3>Liste noire hors A&amp;C</h3><div id="table-hors"></div></section>
+      <section class="card"><h3>Archives</h3><div id="table-archives"></div></section>
+    </section>
 
-  <h4>Membres par organisation</h4>
-  <div id="ordersMembers"></div>
+    <!-- Couronne & PNG -->
+    <section id="tab-couronne-png" class="tabpane">
+      <section class="card"><h3>Recherchés par la couronne</h3><div id="table-couronne"></div></section>
+      <section class="card"><h3>PNG</h3><div id="table-png"></div></section>
+    </section>
 
-  <!-- Onglets -->
-  <div class="tabs">
-    <button class="tab active" data-tab="principales">Listes principales</button>
-    <button class="tab" data-tab="couronne-png">Couronne & PNG</button>
-    <button class="tab" data-tab="organisations">Organisations brigandes</button>
-  </div>
+    <!-- Organisations brigandes -->
+    <section id="tab-organisations" class="tabpane">
+      <section class="card"><h3>Organisations brigandes</h3><div id="table-orders"></div></section>
+    </section>
+  </main>
 
-  <!-- Listes principales -->
-  <section id="tab-principales" class="tabpane active">
-    <section class="card"><h3>Liste noire</h3><div id="table-noire"></div></section>
-    <section class="card"><h3>Liste de surveillance</h3><div id="table-surveillance"></div></section>
-    <section class="card"><h3>Liste noire hors A&amp;C</h3><div id="table-hors"></div></section>
-    <section class="card"><h3>Archives</h3><div id="table-archives"></div></section>
-  </section>
+  <!-- Modale d’édition harmonisée -->
+  <div id="modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Modifier un brigand</h3>
+        <button class="close" id="closeModal" aria-label="Fermer">×</button>
+      </div>
+      <form id="editForm" class="grid">
+        <input type="hidden" id="editId" name="id" />
+        <div class="field">
+          <label for="editName">Nom IG</label>
+          <input type="text" id="editName" name="name" required />
+        </div>
 
-  <!-- Couronne & PNG -->
-  <section id="tab-couronne-png" class="tabpane">
-    <section class="card"><h3>Recherchés par la couronne</h3><div id="table-couronne"></div></section>
-    <section class="card"><h3>PNG</h3><div id="table-png"></div></section>
-  </section>
+        <div class="field">
+          <label for="editPrimary">Listes principales</label>
+          <select id="editPrimary" name="list">
+            <option value="">Aucune</option>
+            <option value="surveillance">Liste de surveillance</option>
+            <option value="noire">Liste noire</option>
+            <option value="hors">Liste noire hors A&C</option>
+            <option value="archives">Archives</option>
+          </select>
+        </div>
 
-  <!-- Organisations brigandes -->
-  <section id="tab-organisations" class="tabpane">
-    <section class="card"><h3>Organisations brigandes</h3><div id="table-orders"></div></section>
-  </section>
-</main>
+        <div class="field">
+          <label for="editOrder">Organisation brigande</label>
+          <select id="editOrder" name="order_id">
+            <option value="">Aucune</option>
+          </select>
+        </div>
 
-<!-- Modale d’édition harmonisée -->
-<div id="modal" class="modal hidden" aria-hidden="true">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Modifier un brigand</h3>
-      <button class="close" id="closeModal" aria-label="Fermer">×</button>
+        <div class="field span-2">
+          <label for="editFacts">Faits reprochés</label>
+          <textarea id="editFacts" name="facts" rows="3"></textarea>
+        </div>
+
+        <div class="field check">
+          <label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label>
+        </div>
+        <div class="field check">
+          <label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Valider</button>
+          <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>
+          <button type="button" class="btn" id="cancelEdit">Annuler</button>
+        </div>
+      </form>
     </div>
-    <form id="editForm" class="grid">
-      <input type="hidden" id="editId" name="id" />
-      <div class="field">
-        <label for="editName">Nom IG</label>
-        <input type="text" id="editName" name="name" required />
-      </div>
-
-      <div class="field">
-        <label for="editPrimary">Listes principales</label>
-        <select id="editPrimary" name="list">
-          <option value="">Aucune</option>
-          <option value="surveillance">Liste de surveillance</option>
-          <option value="noire">Liste noire</option>
-          <option value="hors">Liste noire hors A&C</option>
-          <option value="archives">Archives</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="editOrder">Organisation brigande</label>
-        <select id="editOrder" name="order_id">
-          <option value="">Aucune</option>
-        </select>
-      </div>
-
-      <div class="field span-2">
-        <label for="editFacts">Faits reprochés</label>
-        <textarea id="editFacts" name="facts" rows="3"></textarea>
-      </div>
-
-      <div class="field check">
-        <label><input type="checkbox" id="editCrown" name="is_crown" /> Recherché par la couronne</label>
-      </div>
-      <div class="field check">
-        <label><input type="checkbox" id="editPNG" name="is_png" /> PNG</label>
-      </div>
-
-      <div class="actions">
-        <button type="submit" class="btn primary">Valider</button>
-        <button type="button" class="btn brigand" id="deleteEntry">Supprimer</button>
-        <button type="button" class="btn" id="cancelEdit">Annuler</button>
-      </div>
-    </form>
-  </div>
-</div> <!-- fin de .modal -->
-
-</div> <!-- fin de .card -->
-</div> <!-- fin de .container -->
-{% endblock %}
+  </div> 
