@@ -2,6 +2,8 @@
 {% set page_class = "brigands" %}
 {% block content %}
 
+<div class="container">
+  <div class="card">
 <h1>Gestion des brigands</h1>
 
 <!-- Message de retour -->
@@ -182,10 +184,8 @@
       </div>
     </form>
   </div>
-</div>
+</div> <!-- fin de .modal -->
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
-
+</div> <!-- fin de .card -->
+</div> <!-- fin de .container -->
 {% endblock %}
-
