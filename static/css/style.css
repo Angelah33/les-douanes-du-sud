@@ -233,3 +233,12 @@ th {
     padding: 1rem;
   }
 }
+
+/* === Champs de formulaire === */
+input,
+textarea,
+select {
+  background-color: #f5f0e6;
+  border: 1px solid #c2b59b;
+  color: #2e2e2e;
+}
