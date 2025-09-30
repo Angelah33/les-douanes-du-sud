@@ -118,14 +118,6 @@ textarea {
   color: white;
 }
 
-.tabpane {
-  display: none;
-}
-
-.tabpane.active {
-  display: block;
-}
-
 /* === Tableaux === */
 table {
   width: 100%;
@@ -231,4 +223,12 @@ select {
   background-color: #f5f0e6;
   border: 1px solid #c2b59b;
   color: #2e2e2e;
+}
+
+.pane {
+  display: none;
+}
+
+.pane.active {
+  display: block;
 }
