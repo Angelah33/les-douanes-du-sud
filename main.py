@@ -675,15 +675,15 @@ def rapports_du_jour():
     if current_user.role != "prevot":
         abort(403)
     jour = jour_actif()
-    villages = Village.query.order_by(Village.name.asc()).all()
+    villages = Village.query.order_by(Village.nom.asc()).all()
     rapports_faits = []
     rapports_manquants = []
     for village in villages:
-        rapport = Report.query.filter_by(village=village.name, report_date=jour).first()
+        rapport = Report.query.filter_by(village=village.nom, report_date=jour).first()
         if rapport:
-            rapports_faits.append((village.name, rapport.id))
+            rapports_faits.append((village.nom, rapport.id))
         else:
-            rapports_manquants.append(village.name)
+            rapports_manquants.append(village.nom)
     return render_template("rapports_jour.html",
                            jour=jour,
                            faits=rapports_faits,
@@ -721,7 +721,7 @@ def get_villages_traite_today():
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
-    villages = [v.name for v in Village.query.order_by(Village.name.asc()).all()]
+    villages = [v.name for v in Village.query.order_by(Village.nom.asc()).all()]
     blocked = is_blocked_now()
     jour_de_jeu = get_jour_de_jeu()
     def rerender():
@@ -743,7 +743,7 @@ def rapport():
         mv         = (request.form.get("mem_visions") or "").strip()
         surv       = (request.form.get("surveillance") or "").strip()
         flux       = (request.form.get("flux") or "").strip()
-        foreigners = (request.form.get("foreigners") or "").strip()
+        etrangers = (request.form.get("etrangers") or "").strip()
         acp        = (request.form.get("ac_presence") or "").strip()
         ag         = (request.form.get("armies_groups") or "").strip()
         villagers  = (request.form.get("villagers") or "").strip()
@@ -819,14 +819,12 @@ def org_display_label(org: Organisation):
 def brigand_to_json(b: Brigand):
     return {
         "id": b.id,
-        "name": b.name,
-        "list": b.list or "",
-        "facts": b.facts or "",
-        "is_crown": bool(b.is_crown),
-        "is_png": bool(b.is_png),
-        # Compat: on renvoie à la fois l'ID et un libellé texte
-        "order_id": b.order_id,
-        "order": org_display_label(b.organisation) if b.organisation else (b.order or ""),
+        "nom": b.nom,
+        "liste": b.liste or "",
+        "faits": b.faits or "",
+        "couronne": bool(b.couronne),
+        "png": bool(b.png),
+        "organisation_id": b.organisation_id,
         "organisation": (
             {
                 "id": b.organisation.id,
@@ -840,7 +838,7 @@ def brigand_to_json(b: Brigand):
 @login_required
 def api_brigands():
     require_prevot_or_admin()
-    brigands = Brigand.query.order_by(Brigand.name.asc()).all()
+    brigands = Brigand.query.order_by(Brigand.nom.asc()).all()
     return jsonify([brigand_to_json(b) for b in brigands])
 
 @app.route("/api/brigands", methods=["POST"])
@@ -870,14 +868,14 @@ def create_brigand():
         ).first()
         order_id = org.id if org else None
 
-    brigand = Brigand(
-        name=name,
-        list=(data.get("list") or "").strip(),
-        facts=(data.get("facts") or "").strip(),
-        is_crown=bool(data.get("is_crown")),
-        is_png=bool(data.get("is_png")),
-        order_id=order_id
-    )
+brigand = Brigand(
+    nom=nom,
+    liste=(data.get("liste") or "").strip(),
+    faits=(data.get("faits") or "").strip(),
+    couronne=bool(data.get("couronne")),
+    png=bool(data.get("png")),
+    organisation_id=organisation_id
+)
 
     try:
         db.session.add(brigand)
@@ -908,44 +906,44 @@ def update_brigand(brigand_id):
     if not brigand:
         return jsonify({"error": "Brigand introuvable"}), 404
 
-    # Champs libres (tous facultatifs)
-    if "name" in data:
-        new_name = (data.get("name") or "").strip()
-        if not new_name:
-            return jsonify({"error": "Le nom IG ne peut pas être vide"}), 400
-        brigand.name = new_name
+# Champs libres (tous facultatifs)
+if "nom" in data:
+    new_nom = (data.get("nom") or "").strip()
+    if not new_nom:
+        return jsonify({"error": "Le nom IG ne peut pas être vide"}), 400
+    brigand.nom = new_nom
 
-    if "list" in data:
-        brigand.list = (data.get("list") or "").strip()
+if "liste" in data:
+    brigand.liste = (data.get("liste") or "").strip()
 
-    if "facts" in data:
-        brigand.facts = (data.get("facts") or "").strip()
+if "faits" in data:
+    brigand.faits = (data.get("faits") or "").strip()
 
-    if "is_crown" in data:
-        brigand.is_crown = bool(data.get("is_crown"))
+if "couronne" in data:
+    brigand.couronne = bool(data.get("couronne"))
 
-    if "is_png" in data:
-        brigand.is_png = bool(data.get("is_png"))
+if "png" in data:
+    brigand.png = bool(data.get("png"))
 
-    # Organisation: privilégie order_id, sinon tentative de résolution depuis 'order' texte
-    order_id = data.get("order_id", None)
-    if order_id in ("", None):
+# Organisation : on privilégie organisation_id, sinon tentative de résolution depuis un libellé texte
+organisation_id = data.get("organisation_id", None)
+if organisation_id in ("", None):
+    resolved_id = None
+else:
+    try:
+        resolved_id = int(organisation_id)
+    except Exception:
         resolved_id = None
-    else:
-        try:
-            resolved_id = int(order_id)
-        except Exception:
-            resolved_id = None
 
-    if resolved_id is None and (data.get("order") or "").strip():
-        legacy = (data.get("order") or "").strip()
-        org = Organisation.query.filter(
-            (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
-        ).first()
-        resolved_id = org.id if org else None
+if resolved_id is None and (data.get("organisation") or "").strip():
+    legacy = (data.get("organisation") or "").strip()
+    org = Organisation.query.filter(
+        (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
+    ).first()
+    resolved_id = org.id if org else None
 
-    if "order_id" in data or "order" in data:
-        brigand.order_id = resolved_id
+if "organisation_id" in data or "organisation" in data:
+    brigand.organisation_id = resolved_id
 
     try:
         db.session.commit()
@@ -976,17 +974,17 @@ def delete_brigands_by_name():
         return jsonify({"error": str(e)}), 500
 
 # ---------- API Organisations ----------
-@app.route("/api/orders")
+@app.route("/api/organisations")
 @login_required
-def api_orders():
+def api_organisations():
     require_prevot_or_admin()
-    orders = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
+    organisations = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
     return jsonify([
         {
             "id": o.id,
             "nom_complet": o.nom_complet,
             "nom_abrege": o.nom_abrege
-        } for o in orders
+        } for o in organisations
     ])
 
 @app.route("/api/organisations")
