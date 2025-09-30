@@ -14,6 +14,17 @@ async function apiGetOrders() {
   return json;
 }
 
+async function apiCreateOrder(data) {
+  const res = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors de la création");
+  return json;
+}
+
 function initDOM() {
   // Création
   DOM.createForm = document.getElementById("createForm");
