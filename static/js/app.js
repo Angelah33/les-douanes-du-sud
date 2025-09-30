@@ -234,6 +234,20 @@ function closeModal() {
   DOM.editForm.reset();
 }
 
+async function apiGetBrigands() {
+  const res = await fetch("/api/brigands");
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors du chargement des brigands");
+  return json;
+}
+
+async function apiGetOrders() {
+  const res = await fetch("/api/orders");
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors du chargement des ordres");
+  return json;
+}
+
 async function reloadAll() {
   const [brigands, orders] = await Promise.all([
     apiGetBrigands(),
