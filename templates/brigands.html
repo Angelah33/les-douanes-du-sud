@@ -14,22 +14,72 @@
   <section class="brigand-form">
     <h2>Création d’un brigand</h2>
     <form id="createForm" class="grid">
-      <!-- ... contenu inchangé ... -->
+      <div class="field">
+        <label for="name">Nom IG</label>
+        <input type="text" id="name" name="name" required placeholder="Ex: Bidule" />
+      </div>
+
+      <div class="field">
+        <label for="primaryList">Listes principales</label>
+        <select id="primaryList" name="list">
+          <option value="" selected>Aucune</option>
+          <option value="surveillance">Liste de surveillance</option>
+          <option value="noire">Liste noire</option>
+          <option value="hors">Liste noire hors A&C</option>
+          <option value="archives">Archives</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="orderSelect">Organisation brigande</label>
+        <select id="orderSelect" name="order_id">
+          <option value="">Aucune</option>
+        </select>
+      </div>
+
+      <div class="field span-2">
+        <label for="facts">Faits reprochés</label>
+        <textarea id="facts" name="facts" rows="3" placeholder="Ex: Prise mairie Lectoure le 08/1471"></textarea>
+      </div>
+
+      <div class="field check">
+        <label><input type="checkbox" id="isCrown" name="is_crown" /> Recherché par la couronne</label>
+      </div>
+      <div class="field check">
+        <label><input type="checkbox" id="isPNG" name="is_png" /> PNG</label>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn brigand">Ajouter</button>
+      </div>
     </form>
 
     <br><h3>Modifier un brigand</h3>
     <form id="editSearchForm" class="grid">
-      <!-- ... contenu inchangé ... -->
+      <div class="field" style="max-width: 300px;">
+        <label for="editSearch">Nom IG</label>
+        <input type="text" id="editSearch" placeholder="Ex: Bidule" />
+      </div>
+      <div class="actions" style="max-width: 300px;">
+        <button type="button" class="btn brigand">Modifier</button>
+      </div>
     </form>
 
     <br><h3>Supprimer un ou plusieurs brigands</h3>
     <form id="deleteForm" class="grid">
-      <!-- ... contenu inchangé ... -->
+      <div class="field" style="max-width: 400px;">
+        <label for="deleteNames">Supprimer un ou plusieurs brigands (séparés par un ;)</label>
+        <textarea id="deleteNames" rows="4" placeholder="Ex: Bidule;Machin;Trucmuche"></textarea>
+      </div>
+      <div class="actions" style="max-width: 300px;">
+        <button type="submit" class="btn brigand">Supprimer</button>
+      </div>
     </form>
   </section>
 </div>
 
 <br>
+
 <!-- Bloc organisations brigandes -->
 <div style="background-color: #f5f0e6; padding: 2rem; border-radius: 8px;">
   <section class="brigand-form">
