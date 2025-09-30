@@ -976,6 +976,19 @@ def delete_brigands_by_name():
         return jsonify({"error": str(e)}), 500
 
 # ---------- API Organisations ----------
+@app.route("/api/orders")
+@login_required
+def api_orders():
+    require_prevot_or_admin()
+    orders = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
+    return jsonify([
+        {
+            "id": o.id,
+            "nom_complet": o.nom_complet,
+            "nom_abrege": o.nom_abrege
+        } for o in orders
+    ])
+
 @app.route("/api/organisations")
 @login_required
 def get_organisations():
