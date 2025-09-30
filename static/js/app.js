@@ -270,6 +270,26 @@ function renderTabs(brigands, orders) {
   DOM.tableOrders.innerHTML = renderOrders(orders);
 }
 
+// Remplit le menu déroulant dans le formulaire de création
+function renderFormCreate(brigands, orders) {
+  DOM.orderSelect.innerHTML = `<option value="">Aucune</option>` +
+    orders.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
+}
+
+// Remplit le menu déroulant dans la modale d’édition
+function renderFormEdit(brigands, orders) {
+  DOM.editOrder.innerHTML = `<option value="">Aucune</option>` +
+    orders.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
+}
+
+// Affiche les noms disponibles en suggestion pour suppression
+function renderFormDelete(brigands) {
+  const names = brigands.map(b => b.name).filter(Boolean);
+  if (names.length) {
+    DOM.deleteNames.placeholder = `Ex: ${names.slice(0, 3).join(";")}`;
+  }
+}
+
 // Utilitaire : affiche une liste de brigands
 function renderList(arr) {
   if (!arr.length) return "<em>Aucun brigand</em>";
