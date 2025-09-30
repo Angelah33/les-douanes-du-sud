@@ -76,34 +76,57 @@
       </form>
     </section>
 
-    <!-- Bloc organisations brigandes -->
-    <section class="brigand-form">
-      <h2>Gérer les organisations brigandes</h2>
-      <div class="orders-layout">
-        <div class="orders-manage">
-          <h4>Ajouter une organisation</h4>
-          <form id="orderForm" class="grid">
-            <div class="field">
-              <label for="orderName">Nom complet</label>
-              <input type="text" id="orderName" name="nom_complet" required />
-            </div>
-            <div class="field">
-              <label for="orderShort">Nom abrégé</label>
-              <input type="text" id="orderShort" name="nom_abrege" />
-            </div>
-            <div class="actions">
-              <button class="btn brigand" type="submit">Ajouter</button>
-            </div>
-          </form>
-          <div id="ordersTable"></div>
-        </div>
+<!-- Bloc organisations brigandes -->
+<div style="background-color: #f5f0e6; padding: 2rem; border-radius: 8px;">
+
+  <!-- Suppression -->
+  <section class="brigand-form">
+    <h4>Supprimer des organisations brigandes</h4>
+    <form id="deleteOrdersForm" class="grid">
+      <div class="field span-2">
+        <label for="ordersToDelete">Noms à supprimer (séparés par ;)</label>
+        <textarea id="ordersToDelete" name="noms_a_supprimer" rows="3" placeholder="Bidule;Machin;Trucmuche"></textarea>
       </div>
-    </section>
+      <div class="actions">
+        <button class="btn brigand" type="submit">Supprimer</button>
+      </div>
+    </form>
+  </section>
 
-    <hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
+  <br>
+  <hr style="border: 1px solid #c2b59b; margin: 1.5rem 0;">
 
-    <h4>Membres par organisation</h4>
-    <div id="ordersMembers"></div>
+  <!-- Ajout -->
+  <section class="brigand-form">
+    <h2>Gérer les organisations brigandes</h2>
+    <div class="orders-layout">
+      <div class="orders-manage">
+        <h4>Ajouter une organisation</h4>
+        <form id="orderForm" class="grid">
+          <div class="field">
+            <label for="orderName">Nom complet</label>
+            <input type="text" id="orderName" name="nom_complet" required />
+          </div>
+          <div class="field">
+            <label for="orderShort">Nom abrégé</label>
+            <input type="text" id="orderShort" name="nom_abrege" />
+          </div>
+          <div class="actions">
+            <button class="btn brigand" type="submit">Ajouter</button>
+          </div>
+        </form>
+        <div id="ordersTable"></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Ligne séparatrice avant les membres -->
+<hr style="border: none; border-top: 2px solid #5a3e2b; margin: 2rem 0; width: 60%;">
+
+<h4>Membres par organisation</h4>
+<div id="ordersMembers"></div>
 
     <!-- Onglets -->
     <div class="tabs">
