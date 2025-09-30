@@ -301,3 +301,26 @@ function renderOrders(arr) {
   if (!arr.length) return "<em>Aucune organisation</em>";
   return `<ul>${arr.map(o => `<li>${o.nom_complet} (${o.nom_abrege || "-"})</li>`).join("")}</ul>`;
 }
+
+async function apiUpdateBrigand(data) {
+  const id = data.id;
+  const res = await fetch(`/api/brigands/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors de la modification");
+  return json;
+}
+
+async function apiDeleteBrigands(names) {
+  const res = await fetch("/api/brigands/delete-by-name", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ names })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors de la suppression");
+  return json;
+}
