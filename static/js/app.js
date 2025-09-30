@@ -60,6 +60,17 @@ function initDOM() {
   DOM.message = document.getElementById("message");
 }
 
+function bindTabs() {
+  DOM.tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      DOM.tabButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      Object.values(DOM.panes).forEach(p => p.classList.remove("active"));
+      DOM.panes[btn.dataset.tab]?.classList.add("active");
+    });
+  });
+}
+
 function bindEvents() {
   bindTabs();
 
