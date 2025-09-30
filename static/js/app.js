@@ -335,3 +335,9 @@ async function apiDeleteBrigands(names) {
   if (!res.ok) throw new Error(json.error || "Erreur lors de la suppression");
   return json;
 }
+
+document.addEventListener("DOMContentLoaded", async () => {
+  initDOM();
+  bindEvents();
+  await reloadAll();
+});
