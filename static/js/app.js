@@ -229,6 +229,8 @@ async function reloadAll() {
     apiGetOrders(),
   ]);
 
+  window.allBrigands = brigands;
+
   // Détection des brigands invalides
   const brigandsInvalides = brigands.filter(b =>
     !b.name || !b.list || b.list.trim() === ""
@@ -250,4 +252,32 @@ async function reloadAll() {
   renderFormCreate(brigands, orders);
   renderFormEdit(brigands, orders);
   renderFormDelete(brigands);
+}
+
+// Affiche les brigands dans les onglets dynamiques
+function renderTabs(brigands, orders) {
+  // Listes principales
+  DOM.tableNoire.innerHTML = renderList(brigands.filter(b => b.list === "noire"));
+  DOM.tableSurveillance.innerHTML = renderList(brigands.filter(b => b.list === "surveillance"));
+  DOM.tableHors.innerHTML = renderList(brigands.filter(b => b.list === "hors"));
+  DOM.tableArchives.innerHTML = renderList(brigands.filter(b => b.list === "archives"));
+
+  // Couronne & PNG
+  DOM.tableCouronne.innerHTML = renderList(brigands.filter(b => b.is_crown));
+  DOM.tablePNG.innerHTML = renderList(brigands.filter(b => b.is_png));
+
+  // Organisations brigandes
+  DOM.tableOrders.innerHTML = renderOrders(orders);
+}
+
+// Utilitaire : affiche une liste de brigands
+function renderList(arr) {
+  if (!arr.length) return "<em>Aucun brigand</em>";
+  return `<ul>${arr.map(b => `<li>${b.name}</li>`).join("")}</ul>`;
+}
+
+// Utilitaire : affiche une liste d’organisations
+function renderOrders(arr) {
+  if (!arr.length) return "<em>Aucune organisation</em>";
+  return `<ul>${arr.map(o => `<li>${o.nom_complet} (${o.nom_abrege || "-"})</li>`).join("")}</ul>`;
 }
