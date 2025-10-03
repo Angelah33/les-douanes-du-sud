@@ -64,8 +64,8 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
 db_url = os.getenv("DATABASE_URL", "sqlite:///local.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = pg_uri(db_url)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)   # sessions normales : 7 jours
-app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)   # "Rester connecte(e)" : 1 an
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)
 app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
 
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Paris")
@@ -83,7 +83,7 @@ BUREAU_LOGO_URL = os.getenv("BUREAU_LOGO_URL", "")
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
-login_manager.login_message = None  # Supprime le message "Please log in to access this page."
+login_manager.login_message = None
 
 # ---------------------------------------------------------------------
 # Modèles
@@ -103,7 +103,7 @@ class User(db.Model, UserMixin):
 
 class Village(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
+    nom = db.Column(db.String(120), unique=True, nullable=False)
 
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -115,23 +115,21 @@ class Report(db.Model):
     mem_visions = db.Column(db.Text, default="")
     surveillance = db.Column(db.Text, default="")
     flux = db.Column(db.Text, default="")
-    foreigners = db.Column(db.Text, default="")
+    etrangers = db.Column(db.Text, default="")
     ac_presence = db.Column(db.Text, default="")
     armies_groups = db.Column(db.Text, default="")
     villagers = db.Column(db.Text, default="")
     moves = db.Column(db.Text, default="")
     bbcode = db.Column(db.Text, default="")
 
-# ---------- Modèle pour Guides ----------
 class Guide(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    audience = db.Column(db.String(20), nullable=False, unique=True)  # 'marechal' | 'prevot'
+    audience = db.Column(db.String(20), nullable=False, unique=True)
     format = db.Column(db.String(20), nullable=False, default="markdown")
     content = db.Column(db.Text, default="")
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.String(120), default="system")
 
-# ---------- Organisations brigandes ----------
 class Organisation(db.Model):
     __tablename__ = "organisations"
     id = db.Column(db.Integer, primary_key=True)
@@ -140,22 +138,15 @@ class Organisation(db.Model):
     def __repr__(self):
         return f"<Organisation {self.nom_abrege or self.nom_complet}>"
 
-# ---------- Brigands (Option B propre: relation par ID) ----------
 class Brigand(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    # Peut être "", "noire", "surveillance", "hors", "archives" — mais non obligatoire
-    list = db.Column(db.String(20), nullable=True, default="")
-    facts = db.Column(db.Text, default="")
-    is_crown = db.Column(db.Boolean, default=False)
-    is_png = db.Column(db.Boolean, default=False)
-
-    # Nouveau champ propre: clé étrangère vers organisations.id
-    order_id = db.Column(db.Integer, db.ForeignKey("organisations.id"), nullable=True)
-    organisation = db.relationship("Organisation", foreign_keys=[order_id])
-
-    # Ancien champ texte (déprécié) — conservé le temps de la migration douce
-    order = db.Column(db.String(120), default="")  # nom abrégé ou complet (legacy)
+    nom = db.Column(db.String(120), nullable=False)
+    liste = db.Column(db.String(20), nullable=True, default="")
+    faits = db.Column(db.Text, default="")
+    recherche_couronne = db.Column(db.Boolean, default=False)
+    est_png = db.Column(db.Boolean, default=False)
+    organisation_id = db.Column(db.Integer, db.ForeignKey("organisations.id"), nullable=True)
+    organisation = db.relationship("Organisation", foreign_keys=[organisation_id])
 
 # ---------- Rendu Markdown sûr (sanitize) ----------
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS.union({
@@ -207,31 +198,25 @@ def ensure_user_bureau_column():
                 conn.execute(text("ALTER TABLE \"user\" ALTER COLUMN bureau SET DEFAULT 'Armagnac & Comminges'"))
                 conn.commit()
 
-def ensure_brigand_order_id_column_and_migrate():
-    """
-    Ajoute la colonne order_id si absente.
-    Tente une migration douce des anciennes valeurs 'order' (texte) -> order_id en cherchant
-    d'abord par nom_abrege, puis par nom_complet. Ne supprime pas l'ancien champ.
-    """
+def ensure_brigand_organisation_id_column_and_migrate():
     from sqlalchemy import inspect
     insp = inspect(db.engine)
     if "brigand" in insp.get_table_names():
         cols = [c["name"] for c in insp.get_columns("brigand")]
-        if "order_id" not in cols:
+        if "organisation_id" not in cols:
             with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE "brigand" ADD COLUMN order_id INTEGER NULL REFERENCES organisations(id)'))
+                conn.execute(text('ALTER TABLE "brigand" ADD COLUMN organisation_id INTEGER NULL REFERENCES organisations(id)'))
                 conn.commit()
-        # Migration des valeurs legacy -> order_id
         with app.app_context():
             brigands = Brigand.query.all()
             for b in brigands:
-                if b.order_id is None and (b.order or "").strip():
+                if b.organisation_id is None and (b.order or "").strip():
                     legacy = (b.order or "").strip()
                     org = Organisation.query.filter(
                         (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
                     ).first()
                     if org:
-                        b.order_id = org.id
+                        b.organisation_id = org.id
             db.session.commit()
 
 def ensure_guides_exist():
@@ -248,7 +233,7 @@ def ensure_guides_exist():
 with app.app_context():
     db.create_all()
     ensure_user_bureau_column()
-    ensure_brigand_order_id_column_and_migrate()
+    ensure_brigand_organisation_id_column_and_migrate()
     ensure_guides_exist()
 
 # ---------------------------------------------------------------------
@@ -321,13 +306,16 @@ def generer_surveillance_bbcode(nom_ig, typologie='', organisation='', faits='',
         ligne += f" ({statut})"
     return ligne
 
-def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, ac_presence, armies_groups, villagers, moves):
+def bbcode_report(village_name, d, mem_visions, surveillance, flux, etrangers, ac_presence, armies_groups, villagers, moves):
     date_str = d.strftime("%d %B %Y") if d else "Date inconnue"
     lines = []
+
     def title(label, count=None):
         suffix = f" [color=blue][b]{count}[/b][/color]" if count is not None else ""
         lines.append(f"[color={REPORT_TITLE_COLOR}][size=14][b][u]{label}[/u] :[/b][/size][/color]{suffix}\n")
+
     lines.append(f"[quote][center][b][size=18]{village_name}[/size]\nRapport de la maréchaussée du {date_str}.[/b][/center]\n")
+
     if mem_visions.strip():
         lignes_mv = mem_visions.strip().split('\n')
         bloc_mv = []
@@ -345,6 +333,7 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
         mv = "[b]RAS.[/b]"
     title("MÉMOIRE ET VISIONS")
     lines.append(mv + "\n\n")
+
     if surveillance.strip():
         lignes_surv = surveillance.strip().split('\n')
         bloc_surv = []
@@ -365,6 +354,7 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
         surveillance_bbcode = "[b]RAS.[/b]"
     title("PERSONNES EN SURVEILLANCE", count_lines(surveillance_bbcode))
     lines.append(surveillance_bbcode + "\n\n")
+
     def enrichir_bloc(brut):
         lignes = (brut or "").strip().split('\n')
         bloc = []
@@ -372,10 +362,11 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
             if ligne.strip():
                 bloc.append(enrichir_nom(ligne.strip()))
         return '\n'.join(bloc) if bloc else "[b]RAS.[/b]"
+
     title("FLUX MIGRATOIRES", count_lines(flux))
     lines.append(enrichir_bloc(flux) + "\n\n")
-    title("PRÉSENCES ÉTRANGÈRES", count_lines(foreigners))
-    lines.append(enrichir_bloc(foreigners) + "\n\n")
+    title("PRÉSENCES ÉTRANGÈRES", count_lines(etrangers))
+    lines.append(enrichir_bloc(etrangers) + "\n\n")
     title("PRÉSENCES ARMAGNACAISES & COMMINGEOISES", count_lines(ac_presence))
     lines.append(enrichir_bloc(ac_presence) + "\n\n")
     title("ARMÉES ET GROUPES", count_lines(armies_groups))
@@ -384,6 +375,7 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
     bloc_moves = enrichir_bloc(moves)
     bloc_villagers = enrichir_bloc(villagers)
     lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
+
     legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
              "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
              "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
@@ -399,8 +391,12 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, foreigners, 
 @app.context_processor
 def inject_globals():
     return dict(
-        SITE_NAME=SITE_NAME, UI_BG_COLOR=UI_BG_COLOR, UI_TEXT_COLOR=UI_TEXT_COLOR,
-        REPORT_TITLE_COLOR=REPORT_TITLE_COLOR, BUREAU_NAME=BUREAU_NAME, BUREAU_LOGO_URL=BUREAU_LOGO_URL
+        SITE_NAME=SITE_NAME,
+        UI_BG_COLOR=UI_BG_COLOR,
+        UI_TEXT_COLOR=UI_TEXT_COLOR,
+        REPORT_TITLE_COLOR=REPORT_TITLE_COLOR,
+        BUREAU_NAME=BUREAU_NAME,
+        BUREAU_LOGO_URL=BUREAU_LOGO_URL
     )
 
 # ---------------------------------------------------------------------
@@ -422,7 +418,7 @@ def login():
     if request.method == "POST":
         u = request.form.get("username")
         p = request.form.get("password")
-        remember = True if request.form.get("remember") == "on" else False
+        remember = request.form.get("remember") == "on"
         user = User.query.filter_by(username=u).first()
         if not user or not user.check_password(p):
             flash("Identifiants incorrects.")
@@ -452,7 +448,7 @@ def guide_read(audience):
     role = getattr(current_user, "role", "")
     allowed = (
         (role == "marechal" and audience == "marechal") or
-        (role == "prevot"   and audience in ("prevot", "marechal")) or
+        (role == "prevot" and audience in ("prevot", "marechal")) or
         (role == "superadmin")
     )
     if not allowed:
@@ -516,39 +512,39 @@ def admin_guides():
     gm_html = render_markdown_safe(gm.content if gm else "")
     gp_html = render_markdown_safe(gp.content if gp else "")
     return render_template_string("""
-{% extends "base.html" %}{% block content %}
-<h1>Gérer les guides</h1>
-<p><em>(Édition réservée au Super-admin)</em></p>
-{% with msgs = get_flashed_messages() %}
-  {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
-{% endwith %}
-<form method="post" style="display:grid;gap:1rem;grid-template-columns:1fr 1fr;align-items:start">
-  <div>
-    <h3>Guide maréchal (Markdown)</h3>
-    <textarea name="content_marechal" style="width:100%;height:300px">{{ (gm.content if gm else '')|e }}</textarea>
-    <h4>Aperçu</h4>
-    <div id="preview_marechal" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gm_html|safe }}</div>
-  </div>
-  <div>
-    <h3>Guide prévôt (Markdown)</h3>
-    <textarea name="content_prevot" style="width:100%;height:300px">{{ (gp.content if gp else '')|e }}</textarea>
-    <h4>Aperçu</h4>
-    <div id="preview_prevot" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gp_html|safe }}</div>
-  </div>
-  <div style="grid-column:1/-1">
-    <button type="submit">Enregistrer</button>
-  </div>
-</form>
-<script>
-  const pm = document.querySelector("textarea[name='content_marechal']");
-  const pp = document.querySelector("textarea[name='content_prevot']");
-  const vm = document.getElementById("preview_marechal");
-  const vp = document.getElementById("preview_prevot");
-  if (pm && vm) pm.addEventListener("input", ()=>{ vm.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
-  if (pp && vp) pp.addEventListener("input", ()=>{ vp.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
-</script>
-{% endblock %}
-""", gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
+    {% extends "base.html" %}{% block content %}
+    <h1>Gérer les guides</h1>
+    <p><em>(Édition réservée au Super-admin)</em></p>
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}{% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+    <form method="post" style="display:grid;gap:1rem;grid-template-columns:1fr 1fr;align-items:start">
+      <div>
+        <h3>Guide maréchal (Markdown)</h3>
+        <textarea name="content_marechal" style="width:100%;height:300px">{{ (gm.content if gm else '')|e }}</textarea>
+        <h4>Aperçu</h4>
+        <div id="preview_marechal" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gm_html|safe }}</div>
+      </div>
+      <div>
+        <h3>Guide prévôt (Markdown)</h3>
+        <textarea name="content_prevot" style="width:100%;height:300px">{{ (gp.content if gp else '')|e }}</textarea>
+        <h4>Aperçu</h4>
+        <div id="preview_prevot" style="background:#fff3; padding:.6rem; border:1px solid #0002">{{ gp_html|safe }}</div>
+      </div>
+      <div style="grid-column:1/-1">
+        <button type="submit">Enregistrer</button>
+      </div>
+    </form>
+    <script>
+      const pm = document.querySelector("textarea[name='content_marechal']");
+      const pp = document.querySelector("textarea[name='content_prevot']");
+      const vm = document.getElementById("preview_marechal");
+      const vp = document.getElementById("preview_prevot");
+      if (pm && vm) pm.addEventListener("input", ()=>{ vm.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
+      if (pp && vp) pp.addEventListener("input", ()=>{ vp.innerHTML = "<em>Aperçu mis à jour après enregistrement.</em>"; });
+    </script>
+    {% endblock %}
+    """, gm=gm, gp=gp, gm_html=gm_html, gp_html=gp_html)
 
 @app.route("/admin/users", methods=["GET", "POST"], endpoint="admin_users")
 @login_required
@@ -565,9 +561,9 @@ def admin_users():
             db.session.commit()
             flash("Comptes supprimés.")
             return redirect(url_for("admin_users"))
-        uname  = (request.form.get("username") or "").strip()
-        pwd    = (request.form.get("password") or "").strip()
-        role   = (request.form.get("role") or "marechal").strip()
+        uname = (request.form.get("username") or "").strip()
+        pwd = (request.form.get("password") or "").strip()
+        role = (request.form.get("role") or "marechal").strip()
         bureau = (request.form.get("bureau") or "Armagnac & Comminges").strip()
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
@@ -639,7 +635,7 @@ def gestion_marechaux():
         return redirect(url_for("gestion_marechaux"))
     if request.method == "POST" and not request.form.getlist("delete_user"):
         uname = (request.form.get("username") or "").strip()
-        pwd   = (request.form.get("password") or "").strip()
+        pwd = (request.form.get("password") or "").strip()
         import re
         if not uname or not pwd:
             flash("Renseigne un identifiant et un mot de passe.")
@@ -721,9 +717,10 @@ def get_villages_traite_today():
 @app.route("/rapport", methods=["GET", "POST"])
 @login_required
 def rapport():
-    villages = [v.name for v in Village.query.order_by(Village.nom.asc()).all()]
+    villages = [v.nom for v in Village.query.order_by(Village.nom.asc()).all()]
     blocked = is_blocked_now()
     jour_de_jeu = get_jour_de_jeu()
+
     def rerender():
         villages_traite_today = get_villages_traite_today()
         return render_template(
@@ -734,20 +731,23 @@ def rapport():
             villages_traite_today=villages_traite_today,
             jour_de_jeu=jour_de_jeu
         )
+
     if request.method == "POST":
         if blocked:
             flash("Dépôt bloqué.")
             return rerender()
-        garde_val  = request.form.get("tour_de_garde", "")
-        village    = (request.form.get("village") or "").strip()
-        mv         = (request.form.get("mem_visions") or "").strip()
-        surv       = (request.form.get("surveillance") or "").strip()
-        flux       = (request.form.get("flux") or "").strip()
+
+        garde_val = request.form.get("tour_de_garde", "")
+        village = (request.form.get("village") or "").strip()
+        mv = (request.form.get("mem_visions") or "").strip()
+        surv = (request.form.get("surveillance") or "").strip()
+        flux = (request.form.get("flux") or "").strip()
         etrangers = (request.form.get("etrangers") or "").strip()
-        acp        = (request.form.get("ac_presence") or "").strip()
-        ag         = (request.form.get("armies_groups") or "").strip()
-        villagers  = (request.form.get("villagers") or "").strip()
-        moves      = (request.form.get("moves") or "").strip()
+        acp = (request.form.get("ac_presence") or "").strip()
+        ag = (request.form.get("armies_groups") or "").strip()
+        villagers = (request.form.get("villagers") or "").strip()
+        moves = (request.form.get("moves") or "").strip()
+
         errors = []
         if garde_val not in ("oui", "non"):
             errors.append("Indiquez si la garde a été effectuée (oui / non).")
@@ -759,16 +759,20 @@ def rapport():
             errors.append("Renseignez la liste des villageois recensés en mairie.")
         if not ag.strip():
             errors.append("Renseignez les armées et groupes présents hors de la ville.")
+
         if errors:
             for e in errors:
                 flash(e)
             return rerender()
+
         tour = (garde_val == "oui")
         if tour and not mv:
             mv = "[b]RAS.[/b]"
         if not tour and not mv:
             mv = "Tour de garde non effectué (autres données fournies)."
-        bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, foreigners, acp, ag, villagers, moves)
+
+        bb = bbcode_report(village, jour_de_jeu, mv, surv, flux, etrangers, acp, ag, villagers, moves)
+
         r = Report(
             report_date=jour_de_jeu,
             user_id=current_user.id,
@@ -777,7 +781,7 @@ def rapport():
             mem_visions=mv,
             surveillance=surv,
             flux=flux,
-            foreigners=foreigners,
+            foreigners=etrangers,
             ac_presence=acp,
             armies_groups=ag,
             villagers=villagers,
@@ -786,8 +790,10 @@ def rapport():
         )
         db.session.add(r)
         db.session.commit()
+
         date_str = jour_de_jeu.strftime("%d %B %Y") if jour_de_jeu else "Date inconnue"
         return render_template("report_result.html", bbcode=bb, village=village, date=date_str)
+
     villages_traite_today = get_villages_traite_today()
     return render_template(
         "rapport.html",
@@ -822,8 +828,8 @@ def brigand_to_json(b: Brigand):
         "nom": b.nom,
         "liste": b.liste or "",
         "faits": b.faits or "",
-        "couronne": bool(b.couronne),
-        "png": bool(b.png),
+        "couronne": bool(b.recherche_couronne),
+        "png": bool(b.est_png),
         "organisation_id": b.organisation_id,
         "organisation": (
             {
@@ -846,36 +852,34 @@ def api_brigands():
 def create_brigand():
     require_prevot_or_admin()
     data = request.get_json() or {}
-    name = (data.get("name") or "").strip()
-    if not name:
+    nom = (data.get("nom") or "").strip()
+    if not nom:
         return jsonify({"error": "Le nom IG est obligatoire"}), 400
 
-    # Gestion de la relation organisation (ordre)
-    order_id = data.get("order_id")
-    if order_id in ("", None):
-        order_id = None
+    organisation_id = data.get("organisation_id")
+    if organisation_id in ("", None):
+        organisation_id = None
     else:
         try:
-            order_id = int(order_id)
+            organisation_id = int(organisation_id)
         except Exception:
-            order_id = None
+            organisation_id = None
 
-    # Compatibilité legacy: si 'order' (texte) est fourni, tenter de résoudre vers une org
-    if order_id is None and (data.get("order") or "").strip():
-        legacy = (data.get("order") or "").strip()
+    if organisation_id is None and (data.get("organisation") or "").strip():
+        legacy = (data.get("organisation") or "").strip()
         org = Organisation.query.filter(
             (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
         ).first()
-        order_id = org.id if org else None
+        organisation_id = org.id if org else None
 
-brigand = Brigand(
-    nom=nom,
-    liste=(data.get("liste") or "").strip(),
-    faits=(data.get("faits") or "").strip(),
-    couronne=bool(data.get("couronne")),
-    png=bool(data.get("png")),
-    organisation_id=organisation_id
-)
+    brigand = Brigand(
+        nom=nom,
+        liste=(data.get("liste") or "").strip(),
+        faits=(data.get("faits") or "").strip(),
+        recherche_couronne=bool(data.get("couronne")),
+        est_png=bool(data.get("png")),
+        organisation_id=organisation_id
+    )
 
     try:
         db.session.add(brigand)
@@ -889,10 +893,10 @@ brigand = Brigand(
 @login_required
 def search_brigand_by_name():
     require_prevot_or_admin()
-    name = (request.query_string.decode() and request.args.get("name", "") or "").strip()
-    if not name:
+    nom = (request.args.get("nom", "") or "").strip()
+    if not nom:
         return jsonify({"error": "Nom IG manquant"}), 400
-    brigand = Brigand.query.filter_by(name=name).first()
+    brigand = Brigand.query.filter_by(nom=nom).first()
     if not brigand:
         return jsonify({"error": "Brigand introuvable"}), 404
     return jsonify(brigand_to_json(brigand))
@@ -906,44 +910,42 @@ def update_brigand(brigand_id):
     if not brigand:
         return jsonify({"error": "Brigand introuvable"}), 404
 
-# Champs libres (tous facultatifs)
-if "nom" in data:
-    new_nom = (data.get("nom") or "").strip()
-    if not new_nom:
-        return jsonify({"error": "Le nom IG ne peut pas être vide"}), 400
-    brigand.nom = new_nom
+    if "nom" in data:
+        new_nom = (data.get("nom") or "").strip()
+        if not new_nom:
+            return jsonify({"error": "Le nom IG ne peut pas être vide"}), 400
+        brigand.nom = new_nom
 
-if "liste" in data:
-    brigand.liste = (data.get("liste") or "").strip()
+    if "liste" in data:
+        brigand.liste = (data.get("liste") or "").strip()
 
-if "faits" in data:
-    brigand.faits = (data.get("faits") or "").strip()
+    if "faits" in data:
+        brigand.faits = (data.get("faits") or "").strip()
 
-if "couronne" in data:
-    brigand.couronne = bool(data.get("couronne"))
+    if "couronne" in data:
+        brigand.recherche_couronne = bool(data.get("couronne"))
 
-if "png" in data:
-    brigand.png = bool(data.get("png"))
+    if "png" in data:
+        brigand.est_png = bool(data.get("png"))
 
-# Organisation : on privilégie organisation_id, sinon tentative de résolution depuis un libellé texte
-organisation_id = data.get("organisation_id", None)
-if organisation_id in ("", None):
-    resolved_id = None
-else:
-    try:
-        resolved_id = int(organisation_id)
-    except Exception:
+    organisation_id = data.get("organisation_id")
+    if organisation_id in ("", None):
         resolved_id = None
+    else:
+        try:
+            resolved_id = int(organisation_id)
+        except Exception:
+            resolved_id = None
 
-if resolved_id is None and (data.get("organisation") or "").strip():
-    legacy = (data.get("organisation") or "").strip()
-    org = Organisation.query.filter(
-        (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
-    ).first()
-    resolved_id = org.id if org else None
+    if resolved_id is None and (data.get("organisation") or "").strip():
+        legacy = (data.get("organisation") or "").strip()
+        org = Organisation.query.filter(
+            (Organisation.nom_abrege == legacy) | (Organisation.nom_complet == legacy)
+        ).first()
+        resolved_id = org.id if org else None
 
-if "organisation_id" in data or "organisation" in data:
-    brigand.organisation_id = resolved_id
+    if "organisation_id" in data or "organisation" in data:
+        brigand.organisation_id = resolved_id
 
     try:
         db.session.commit()
@@ -957,15 +959,15 @@ if "organisation_id" in data or "organisation" in data:
 def delete_brigands_by_name():
     require_prevot_or_admin()
     data = request.get_json() or {}
-    names = data.get("names", [])
-    if not isinstance(names, list) or not names:
+    noms = data.get("noms", [])
+    if not isinstance(noms, list) or not noms:
         return jsonify({"error": "Liste de noms invalide"}), 400
     deleted = []
-    for name in names:
-        b = Brigand.query.filter_by(name=(name or "").strip()).first()
+    for nom in noms:
+        b = Brigand.query.filter_by(nom=(nom or "").strip()).first()
         if b:
             db.session.delete(b)
-            deleted.append(name)
+            deleted.append(nom)
     try:
         db.session.commit()
         return jsonify({"success": True, "deleted": deleted})
@@ -986,20 +988,6 @@ def api_organisations():
             "nom_abrege": o.nom_abrege
         } for o in organisations
     ])
-
-@app.route("/api/organisations")
-@login_required
-def get_organisations():
-    require_prevot_or_admin()
-    organisations = Organisation.query.order_by(Organisation.nom_complet.asc()).all()
-    result = []
-    for org in organisations:
-        result.append({
-            "id": org.id,
-            "nom_complet": org.nom_complet,
-            "nom_abrege": org.nom_abrege
-        })
-    return jsonify(result)
 
 @app.route("/api/organisations", methods=["POST"])
 @login_required
@@ -1047,18 +1035,14 @@ def update_organisation(org_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/organisations/<int:org_id>", methods=["DELETE"])
-@login_required
-def delete_organisation(org_id):
-    require_prevot_or_admin()
     org = Organisation.query.get(org_id)
     if not org:
         return jsonify({"error": "Organisation introuvable"}), 404
     try:
         db.session.delete(org)
-        # Optionnel: nettoyer les brigands pointant vers cette org
-        for b in Brigand.query.filter_by(order_id=org.id).all():
-            b.order_id = None
+        # Optionnel : nettoyer les brigands pointant vers cette organisation
+        for b in Brigand.query.filter_by(organisation_id=org.id).all():
+            b.organisation_id = None
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:
