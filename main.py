@@ -1007,7 +1007,9 @@ def create_organisation():
         db.session.add(org)
         db.session.commit()
         return jsonify({"success": True, "id": org.id, "organisation": {
-            "id": org.id, "nom_complet": org.nom_complet, "nom_abrege": org.nom_abrege
+            "id": org.id,
+            "nom_complet": org.nom_complet,
+            "nom_abrege": org.nom_abrege
         }})
     except Exception as e:
         db.session.rollback()
@@ -1032,12 +1034,18 @@ def update_organisation(org_id):
     try:
         db.session.commit()
         return jsonify({"success": True, "organisation": {
-            "id": org.id, "nom_complet": org.nom_complet, "nom_abrege": org.nom_abrege
+            "id": org.id,
+            "nom_complet": org.nom_complet,
+            "nom_abrege": org.nom_abrege
         }})
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/organisations/<int:org_id>", methods=["DELETE"])
+@login_required
+def delete_organisation(org_id):
+    require_prevot_or_admin()
     org = Organisation.query.get(org_id)
     if not org:
         return jsonify({"error": "Organisation introuvable"}), 404
