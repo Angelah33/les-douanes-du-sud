@@ -376,12 +376,15 @@ def bbcode_report(village_name, d, mem_visions, surveillance, flux, etrangers, a
     bloc_villagers = enrichir_bloc(villagers)
     lines.append(f"[spoiler][quote]Déménagements[/quote]\n{bloc_moves}\n{bloc_villagers}\n[/spoiler]\n\n")
 
-    legend = "[quote][size=9][b]LÉGENDE[/b] :\n" \
-             "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n" \
-             "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n" \
-             "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n" \
-             "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n" \
-             "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+    legend = (
+        "[quote][size=9][b]LÉGENDE[/b] :\n"
+        "[color=darkorange][b]Orange[/b][/color] : Recherché par la Couronne de France.\n"
+        "[color=red][b]Rouge[/b][/color] : Surveillance accrue (liste noire, casier judiciaire, etc.).\n"
+        "[color=darkred][b]DarkRed[/b][/color] : Surveillance légère (prescriptions, casier léger, suspicions, etc.).\n"
+        "[color=indigo][b]PNG[/b][/color] : Persona Non Grata (interdit de territoire).\n"
+        "[color=green][b]Vert[/b][/color] : Individu sans antécédent judiciaire chez A&C.\n"
+        "(statuts spéciaux) : (en prison), (en retraite spirituelle), (en retranchement), (mort).[/size][/quote]"
+    )
     lines.append(legend + "\n[/quote]")
     return "\n".join(lines)
 
