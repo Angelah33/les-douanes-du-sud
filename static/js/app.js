@@ -7,15 +7,15 @@ async function apiGetBrigands() {
   return json;
 }
 
-async function apiGetOrders() {
-  const res = await fetch("/api/orders");
+async function apiGetOrganisations() {
+  const res = await fetch("/api/organisations");
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "Erreur lors du chargement des ordres");
+  if (!res.ok) throw new Error(json.error || "Erreur lors du chargement des organisations");
   return json;
 }
 
-async function apiCreateOrder(data) {
-  const res = await fetch("/api/orders", {
+async function apiCreateOrganisation(data) {
+  const res = await fetch("/api/organisations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
@@ -27,28 +27,28 @@ async function apiCreateOrder(data) {
 
 function initDOM() {
   // Création
-  DOM.createForm = document.getElementById("createForm");
-  DOM.name = document.getElementById("name");
-  DOM.primaryList = document.getElementById("primaryList");
-  DOM.facts = document.getElementById("facts");
-  DOM.isCrown = document.getElementById("isCrown");
-  DOM.isPNG = document.getElementById("isPNG");
-  DOM.orderSelect = document.getElementById("orderSelect");
+  DOM.formulaireCreation = document.getElementById("formulaireCreation");
+  DOM.nomIG = document.getElementById("nomIG");
+  DOM.listePrincipale = document.getElementById("listePrincipale");
+  DOM.faitsReproches = document.getElementById("faitsReproches");
+  DOM.rechercheCouronne = document.getElementById("rechercheCouronne");
+  DOM.estPNG = document.getElementById("estPNG");
+  DOM.organisationSelect = document.getElementById("organisationSelect");
 
   // Suppression par noms
-  DOM.deleteForm = document.getElementById("deleteForm");
-  DOM.deleteNames = document.getElementById("deleteNames");
+  DOM.formulaireSuppression = document.getElementById("formulaireSuppression");
+  DOM.nomsSuppression = document.getElementById("nomsSuppression");
 
   // Recherche/édition
-  DOM.editSearchForm = document.getElementById("editSearchForm");
-  DOM.editSearchInput = document.getElementById("editSearch");
+  DOM.formulaireRecherche = document.getElementById("formulaireRecherche");
+  DOM.rechercheNom = document.getElementById("rechercheNom");
 
   // Organisations (admin)
-  DOM.orderForm = document.getElementById("orderForm");
-  DOM.orderName = document.getElementById("orderName");
-  DOM.orderShort = document.getElementById("orderShort");
-  DOM.ordersTable = document.getElementById("ordersTable");
-  DOM.ordersMembers = document.getElementById("ordersMembers");
+  DOM.formulaireOrganisation = document.getElementById("formulaireOrganisation");
+  DOM.nomCompletOrganisation = document.getElementById("nomCompletOrganisation");
+  DOM.nomAbregeOrganisation = document.getElementById("nomAbregeOrganisation");
+  DOM.tableOrganisationsAjoutees = document.getElementById("table-organisations-ajoutees");
+  DOM.organisationsMembres = document.getElementById("organisations-membres");
 
   // Tables onglets
   DOM.tableNoire = document.getElementById("table-noire");
@@ -57,7 +57,7 @@ function initDOM() {
   DOM.tableArchives = document.getElementById("table-archives");
   DOM.tableCouronne = document.getElementById("table-couronne");
   DOM.tablePNG = document.getElementById("table-png");
-  DOM.tableOrders = document.getElementById("table-orders");
+  DOM.tableOrganisations = document.getElementById("table-organisations");
 
   // Tabs
   DOM.tabButtons = document.querySelectorAll(".tab");
@@ -68,18 +68,18 @@ function initDOM() {
   };
 
   // Modale
-  DOM.modal = document.getElementById("modal");
-  DOM.closeModal = document.getElementById("closeModal");
-  DOM.editForm = document.getElementById("editForm");
-  DOM.editId = document.getElementById("editId");
-  DOM.editName = document.getElementById("editName");
-  DOM.editFacts = document.getElementById("editFacts");
-  DOM.editPrimary = document.getElementById("editPrimary");
-  DOM.editCrown = document.getElementById("editCrown");
-  DOM.editPNG = document.getElementById("editPNG");
-  DOM.editOrder = document.getElementById("editOrder");
-  DOM.deleteEntry = document.getElementById("deleteEntry");
-  DOM.cancelEdit = document.getElementById("cancelEdit");
+  DOM.modaleEdition = document.getElementById("modaleEdition");
+  DOM.fermerModale = document.getElementById("fermerModale");
+  DOM.formulaireEdition = document.getElementById("formulaireEdition");
+  DOM.identifiantBrigand = document.getElementById("identifiantBrigand");
+  DOM.nomBrigandEdition = document.getElementById("nomBrigandEdition");
+  DOM.faitsEdition = document.getElementById("faitsEdition");
+  DOM.listePrincipaleEdition = document.getElementById("listePrincipaleEdition");
+  DOM.rechercheCouronneEdition = document.getElementById("rechercheCouronneEdition");
+  DOM.estPNGEdition = document.getElementById("estPNGEdition");
+  DOM.organisationEdition = document.getElementById("organisationEdition");
+  DOM.supprimerEntree = document.getElementById("supprimerEntree");
+  DOM.annulerEdition = document.getElementById("annulerEdition");
 
   // Message
   DOM.message = document.getElementById("message");
@@ -100,25 +100,25 @@ function bindEvents() {
   bindTabs();
 
   // Création brigand
-  DOM.createForm?.addEventListener("submit", async (e) => {
+  DOM.formulaireCreation?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const payload = {
-      name: DOM.name.value.trim(),
-      list: DOM.primaryList.value || "",
-      facts: DOM.facts.value.trim(),
-      is_crown: DOM.isCrown.checked,
-      is_png: DOM.isPNG.checked,
-      order_id: DOM.orderSelect.value || null,
+      nom: DOM.nomIG.value.trim(),
+      liste: DOM.listePrincipale.value || "",
+      faits: DOM.faitsReproches.value.trim(),
+      recherche_couronne: DOM.rechercheCouronne.checked,
+      est_png: DOM.estPNG.checked,
+      organisation_id: DOM.organisationSelect.value || null,
     };
 
-    if (!payload.name) {
+    if (!payload.nom) {
       DOM.message.innerHTML = `<div class="error">Le nom IG est requis.</div>`;
       return;
     }
 
     try {
       await apiCreateBrigand(payload);
-      DOM.createForm.reset();
+      DOM.formulaireCreation.reset();
       await reloadAll();
       DOM.message.innerHTML = `<div class="success">Brigand ajouté !</div>`;
       setTimeout(() => { DOM.message.innerHTML = ""; }, 5000);
@@ -128,11 +128,11 @@ function bindEvents() {
   });
 
   // Recherche brigand à modifier
-  const searchBtn = DOM.editSearchForm?.querySelector("button");
+  const searchBtn = DOM.formulaireRecherche?.querySelector("button");
   searchBtn?.addEventListener("click", () => {
-    const name = DOM.editSearchInput.value.trim();
-    if (!name) return;
-    const found = window.allBrigands.find(b => b.name.toLowerCase() === name.toLowerCase());
+    const nom = DOM.rechercheNom.value.trim();
+    if (!nom) return;
+    const found = window.allBrigands.find(b => b.nom.toLowerCase() === nom.toLowerCase());
     if (!found) {
       DOM.message.innerHTML = `<div class="error">Aucun brigand trouvé.</div>`;
       return;
@@ -141,19 +141,19 @@ function bindEvents() {
   });
 
   // Soumission modale édition
-  DOM.editForm?.addEventListener("submit", async (e) => {
+  DOM.formulaireEdition?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const payload = {
-      id: DOM.editId.value,
-      name: DOM.editName.value.trim(),
-      list: DOM.editPrimary.value || "",
-      facts: DOM.editFacts.value.trim(),
-      is_crown: DOM.editCrown.checked,
-      is_png: DOM.editPNG.checked,
-      order_id: DOM.editOrder.value || null,
+      id: DOM.identifiantBrigand.value,
+      nom: DOM.nomBrigandEdition.value.trim(),
+      liste: DOM.listePrincipaleEdition.value || "",
+      faits: DOM.faitsEdition.value.trim(),
+      recherche_couronne: DOM.rechercheCouronneEdition.checked,
+      est_png: DOM.estPNGEdition.checked,
+      organisation_id: DOM.organisationEdition.value || null,
     };
 
-    if (!payload.name) {
+    if (!payload.nom) {
       DOM.message.innerHTML = `<div class="error">Le nom IG est requis.</div>`;
       return;
     }
@@ -170,8 +170,8 @@ function bindEvents() {
   });
 
   // Suppression depuis modale
-  DOM.deleteEntry?.addEventListener("click", async () => {
-    const id = DOM.editId.value;
+  DOM.supprimerEntree?.addEventListener("click", async () => {
+    const id = DOM.identifiantBrigand.value;
     if (!id) return;
     try {
       await apiDeleteBrigand(id);
@@ -185,19 +185,19 @@ function bindEvents() {
   });
 
   // Annuler modale
-  DOM.cancelEdit?.addEventListener("click", () => {
+  DOM.annulerEdition?.addEventListener("click", () => {
     closeModal();
   });
 
   // Suppression multiple
-  DOM.deleteForm?.addEventListener("submit", async (e) => {
+  DOM.formulaireSuppression?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const raw = DOM.deleteNames.value.trim();
+    const raw = DOM.nomsSuppression.value.trim();
     if (!raw) return;
-    const names = raw.split(";").map(n => n.trim()).filter(n => n);
+    const noms = raw.split(";").map(n => n.trim()).filter(n => n);
     try {
-      const res = await apiDeleteBrigands(names);
-      DOM.deleteForm.reset();
+      const res = await apiDeleteBrigands(noms);
+      DOM.formulaireSuppression.reset();
       await reloadAll();
       DOM.message.innerHTML = `<div class="success">Brigands supprimés: ${(res.deleted || []).join(", ")}</div>`;
       setTimeout(() => { DOM.message.innerHTML = ""; }, 5000);
@@ -207,16 +207,16 @@ function bindEvents() {
   });
 
   // Ajout organisation
-  DOM.orderForm?.addEventListener("submit", async (e) => {
+  DOM.formulaireOrganisation?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const payload = {
-      nom_complet: DOM.orderName.value.trim(),
-      nom_abrege: DOM.orderShort.value.trim(),
+      nom_complet: DOM.nomCompletOrganisation.value.trim(),
+      nom_abrege: DOM.nomAbregeOrganisation.value.trim(),
     };
     if (!payload.nom_complet) return;
     try {
-      await apiCreateOrder(payload);
-      DOM.orderForm.reset();
+      await apiCreateOrganisation(payload);
+      DOM.formulaireOrganisation.reset();
       await reloadAll();
     } catch (err) {
       console.error(err);
@@ -234,7 +234,7 @@ function bindEvents() {
   });
 
   // Fermer modale
-  DOM.closeModal?.addEventListener("click", () => {
+  DOM.fermerModale?.addEventListener("click", () => {
     closeModal();
   });
 }
@@ -242,38 +242,38 @@ function bindEvents() {
 function openEdit(id) {
   const b = window.allBrigands.find(b => b.id === id);
   if (!b) return;
-  DOM.editId.value = b.id;
-  DOM.editName.value = b.name || "";
-  DOM.editFacts.value = b.facts || "";
-  DOM.editPrimary.value = b.list || "";
-  DOM.editOrder.value = b.order || "";
-  DOM.editCrown.checked = b.is_crown || false;
-  DOM.editPNG.checked = b.is_png || false;
-  DOM.modal.classList.remove("hidden");
-  DOM.modal.setAttribute("aria-hidden", "false");
+  DOM.identifiantBrigand.value = b.id;
+  DOM.nomBrigandEdition.value = b.nom || "";
+  DOM.faitsEdition.value = b.faits || "";
+  DOM.listePrincipaleEdition.value = b.liste || "";
+  DOM.organisationEdition.value = b.organisation_id || "";
+  DOM.rechercheCouronneEdition.checked = b.recherche_couronne || false;
+  DOM.estPNGEdition.checked = b.est_png || false;
+  DOM.modaleEdition.classList.remove("hidden");
+  DOM.modaleEdition.setAttribute("aria-hidden", "false");
 }
 
 function closeModal() {
-  DOM.modal.classList.add("hidden");
-  DOM.modal.setAttribute("aria-hidden", "true");
-  DOM.editForm.reset();
+  DOM.modaleEdition.classList.add("hidden");
+  DOM.modaleEdition.setAttribute("aria-hidden", "true");
+  DOM.formulaireEdition.reset();
 }
 
 async function reloadAll() {
-  const [brigands, orders] = await Promise.all([
+  const [brigands, organisations] = await Promise.all([
     apiGetBrigands(),
-    apiGetOrders(),
+    apiGetOrganisations(),
   ]);
 
   window.allBrigands = brigands;
 
   // Détection des brigands invalides
   const brigandsInvalides = brigands.filter(b =>
-    !b.name || !b.list || b.list.trim() === ""
+    !b.nom || !b.liste || b.liste.trim() === ""
   );
 
   if (brigandsInvalides.length > 0) {
-    console.warn("⚠️ Brigands invalides détectés :", brigandsInvalides.map(b => b.name));
+    console.warn("⚠️ Brigands invalides détectés :", brigandsInvalides.map(b => b.nom));
     DOM.message.innerHTML = `
       <div class="error">
         ⚠️ ${brigandsInvalides.length} brigand(s) mal renseigné(s) détecté(s).<br>
@@ -284,58 +284,69 @@ async function reloadAll() {
   }
 
   // Affichage des onglets et formulaires
-  renderTabs(brigands, orders);
-  renderFormCreate(brigands, orders);
-  renderFormEdit(brigands, orders);
+  renderTabs(brigands, organisations);
+  renderFormCreate(organisations);
+  renderFormEdit(organisations);
   renderFormDelete(brigands);
 }
 
 // Affiche les brigands dans les onglets dynamiques
-function renderTabs(brigands, orders) {
+function renderTabs(brigands, organisations) {
   // Listes principales
-  DOM.tableNoire.innerHTML = renderList(brigands.filter(b => b.list === "noire"));
-  DOM.tableSurveillance.innerHTML = renderList(brigands.filter(b => b.list === "surveillance"));
-  DOM.tableHors.innerHTML = renderList(brigands.filter(b => b.list === "hors"));
-  DOM.tableArchives.innerHTML = renderList(brigands.filter(b => b.list === "archives"));
+  DOM.tableNoire.innerHTML = renderList(brigands.filter(b => b.liste === "noire"));
+  DOM.tableSurveillance.innerHTML = renderList(brigands.filter(b => b.liste === "surveillance"));
+  DOM.tableHors.innerHTML = renderList(brigands.filter(b => b.liste === "hors"));
+  DOM.tableArchives.innerHTML = renderList(brigands.filter(b => b.liste === "archives"));
 
   // Couronne & PNG
-  DOM.tableCouronne.innerHTML = renderList(brigands.filter(b => b.is_crown));
-  DOM.tablePNG.innerHTML = renderList(brigands.filter(b => b.is_png));
+  DOM.tableCouronne.innerHTML = renderList(brigands.filter(b => b.recherche_couronne));
+  DOM.tablePNG.innerHTML = renderList(brigands.filter(b => b.est_png));
 
   // Organisations brigandes
-  DOM.tableOrders.innerHTML = renderOrders(orders);
+  DOM.tableOrganisations.innerHTML = renderOrganisations(organisations);
 }
 
 // Remplit le menu déroulant dans le formulaire de création
-function renderFormCreate(brigands, orders) {
-  DOM.orderSelect.innerHTML = `<option value="">Aucune</option>` +
-    orders.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
+function renderFormCreate(organisations) {
+  DOM.organisationSelect.innerHTML = `<option value="">Aucune</option>` +
+    organisations.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
 }
 
 // Remplit le menu déroulant dans la modale d’édition
-function renderFormEdit(brigands, orders) {
-  DOM.editOrder.innerHTML = `<option value="">Aucune</option>` +
-    orders.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
+function renderFormEdit(organisations) {
+  DOM.organisationEdition.innerHTML = `<option value="">Aucune</option>` +
+    organisations.map(o => `<option value="${o.id}">${o.nom_complet}</option>`).join("");
 }
 
 // Affiche les noms disponibles en suggestion pour suppression
 function renderFormDelete(brigands) {
-  const names = brigands.map(b => b.name).filter(Boolean);
-  if (names.length) {
-    DOM.deleteNames.placeholder = `Ex: ${names.slice(0, 3).join(";")}`;
+  const noms = brigands.map(b => b.nom).filter(Boolean);
+  if (noms.length) {
+    DOM.nomsSuppression.placeholder = `Ex: ${noms.slice(0, 3).join(";")}`;
   }
 }
 
 // Utilitaire : affiche une liste de brigands
 function renderList(arr) {
   if (!arr.length) return "<em>Aucun brigand</em>";
-  return `<ul>${arr.map(b => `<li>${b.name}</li>`).join("")}</ul>`;
+  return `<ul>${arr.map(b => `<li>${b.nom}</li>`).join("")}</ul>`;
 }
 
 // Utilitaire : affiche une liste d’organisations
-function renderOrders(arr) {
+function renderOrganisations(arr) {
   if (!arr.length) return "<em>Aucune organisation</em>";
   return `<ul>${arr.map(o => `<li>${o.nom_complet} (${o.nom_abrege || "-"})</li>`).join("")}</ul>`;
+}
+
+async function apiCreateBrigand(data) {
+  const res = await fetch("/api/brigands", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors de la création");
+  return json;
 }
 
 async function apiUpdateBrigand(data) {
@@ -350,14 +361,23 @@ async function apiUpdateBrigand(data) {
   return json;
 }
 
-async function apiDeleteBrigands(names) {
-  const res = await fetch("/api/brigands/delete-by-name", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ names })
+async function apiDeleteBrigand(id) {
+  const res = await fetch(`/api/brigands/${id}`, {
+    method: "DELETE"
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Erreur lors de la suppression");
+  return json;
+}
+
+async function apiDeleteBrigands(noms) {
+  const res = await fetch("/api/brigands/delete-by-name", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ noms })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Erreur lors de la suppression multiple");
   return json;
 }
 
